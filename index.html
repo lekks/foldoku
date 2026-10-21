@@ -1,0 +1,433 @@
+<title>Генератор Квадригами</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: control strip on top, the printed sheet (front + back) as the hero, fold diagrams below in reading order */
+:root {
+  --bg: #eceef1;
+  --surface: #ffffff;
+  --ink: #17181c;
+  --muted: #5b616d;
+  --line: #d3d7de;
+  --sheet: #d9d23a;            /* set from JS: colour of the current sheet */
+  --paper-black: #1d1b1f;      /* printed ink, same in both themes: it is paper */
+  --paper-white: #fbfbf8;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #121317; --surface: #1b1d22; --ink: #e8e9ed; --muted: #9ba1ac; --line: #2d3038; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #121317; --surface: #1b1d22; --ink: #e8e9ed; --muted: #9ba1ac; --line: #2d3038; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 28px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 5vw, 40px); line-height: 1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h1 span { display: inline-block; padding: 0 .12em; background: var(--sheet); color: var(--paper-black); }
+.lede { margin: 8px 0 0; color: var(--muted); max-width: 60ch; }
+h2 { font-family: var(--display); font-weight: 500; font-size: 17px; margin: 0; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); }
+.field { display: grid; gap: 6px; }
+.field > label, .field > .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+input[type=number], select {
+  font: 500 15px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  padding: 7px 10px; height: 38px; min-width: 0;
+}
+input[type=number] { width: 120px; }
+input[type=range] { width: 150px; accent-color: var(--ink); height: 38px; }
+button {
+  font: 600 14px var(--body); height: 38px; padding: 0 16px; cursor: pointer;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--bg);
+}
+button.ghost { background: transparent; color: var(--ink); }
+button:focus-visible, input:focus-visible, select:focus-visible, .sw:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.swatches { display: flex; gap: 6px; height: 38px; align-items: center; }
+.sw { width: 26px; height: 26px; border: 2px solid transparent; padding: 0; cursor: pointer; }
+.sw[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--surface); }
+.spacer { flex: 1 1 0; }
+.val { font: 600 13px var(--mono); }
+
+.board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+figcaption { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+.sheet {
+  --gap: 3.5%;
+  background: var(--sheet); padding: 2.4%; aspect-ratio: 1; max-width: 100%;
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: calc(var(--gap) / 3);
+  box-shadow: 0 1px 0 rgba(0,0,0,.08), 0 10px 30px -18px rgba(0,0,0,.45);
+}
+.cell { position: relative; }
+.cell.B { background: var(--paper-black); }
+.cell.W { background: var(--paper-white); }
+.cell.N {
+  background:
+    conic-gradient(from 45deg at 50% 50%, rgba(255,255,255,.28) 0 25%, rgba(0,0,0,.06) 0 50%, rgba(0,0,0,.16) 0 75%, rgba(255,255,255,.1) 0) ,
+    var(--sheet);
+  outline: 1px solid rgba(0,0,0,.18); outline-offset: -1px;
+}
+.sheet .num { position: absolute; inset: 0; display: grid; place-items: center; font: 600 clamp(9px, 1.6vw, 13px) var(--mono); color: rgba(0,0,0,.55); }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
+.stars { letter-spacing: 2px; color: var(--ink); }
+
+.steps-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.legend { display: flex; gap: 18px; font-size: 12px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+.legend svg { vertical-align: middle; margin-right: 6px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; counter-reset: s; }
+.steps li { background: var(--surface); border: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.steps li .n { font: 600 12px var(--mono); color: var(--muted); }
+.steps li p { margin: 0; font-size: 14px; }
+.steps svg { width: 100%; height: auto; max-width: 100%; display: block; }
+.steps .final { grid-column: 1 / -1; }
+.final-pair { display: flex; flex-wrap: wrap; gap: 24px; }
+.final-pair div { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.final-pair svg { width: 120px; }
+.hidden-sol { padding: 18px; background: var(--surface); border: 1px dashed var(--line); color: var(--muted); }
+.note { font-size: 13px; color: var(--muted); max-width: 70ch; margin: 0; }
+.toast { font-size: 13px; color: var(--muted); min-height: 1.5em; }
+
+@media print {
+  body { background: #fff; padding: 0; }
+  .controls, .steps-section, header .lede, .toast, .note { display: none !important; }
+  .board { grid-template-columns: 1fr 1fr; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Квадри<span>гами</span></h1>
+      <p class="lede">Генератор новых листов. Лист 8×8 нужно сложить по линиям сетки в квадрат 4×4: одна сторона полностью чёрная, другая полностью белая. Каждое задание получено честным складыванием, поэтому решение есть всегда.</p>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Параметры">
+    <div class="field">
+      <label for="seed">Номер задания</label>
+      <input id="seed" type="number" min="1" max="999999" value="101">
+    </div>
+    <div class="field">
+      <label for="level">Сложность</label>
+      <select id="level">
+        <option value="easy">Лёгкая · 2–3 сгиба</option>
+        <option value="mid" selected>Средняя · 4–5 сгибов</option>
+        <option value="hard">Трудная · 6–8 сгибов</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="decoy">Ложные клетки <span class="val" id="decoyVal">15%</span></label>
+      <input id="decoy" type="range" min="0" max="50" step="5" value="15">
+    </div>
+    <div class="field">
+      <span class="lab" id="colorLab">Цвет листа</span>
+      <div class="swatches" id="swatches" role="group" aria-labelledby="colorLab"></div>
+    </div>
+    <div class="spacer"></div>
+    <button id="prev" class="ghost" type="button" aria-label="Предыдущее задание">←</button>
+    <button id="next" type="button">Новое задание</button>
+  </section>
+
+  <section class="board" aria-label="Лист">
+    <figure>
+      <figcaption><b>Лицевая сторона</b><span id="capNo"></span></figcaption>
+      <div class="sheet" id="front"></div>
+    </figure>
+    <figure>
+      <figcaption><b>Оборот</b><span>перевёрнут как страница, справа налево</span></figcaption>
+      <div class="sheet" id="back"></div>
+    </figure>
+  </section>
+
+  <div class="meta" id="meta"></div>
+
+  <section class="steps-section" style="display:grid;gap:14px">
+    <div class="steps-head">
+      <h2>Решение</h2>
+      <div class="legend">
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/></svg>долина: перегнуть поверх</span>
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3"/></svg>гора: подогнуть под низ</span>
+        <button id="toggleSol" class="ghost" type="button" aria-expanded="false">Показать решение</button>
+        <button id="copy" class="ghost" type="button">Копировать JSON</button>
+      </div>
+    </div>
+    <div id="solBox" class="hidden-sol">Решение скрыто, чтобы не подсматривать. На схемах видна верхняя сторона стопки; подсвечена часть, которую сгибаем.</div>
+    <ol class="steps" id="steps" hidden></ol>
+    <p class="toast" id="toast" role="status"></p>
+    <p class="note">Сгибы делаются по всей толщине стопки сразу, и часть, которая не двигается, остаётся на месте. Ложные клетки — это чёрные и белые грани, которые в итоге оказываются спрятаны внутри квадрата. Чтобы распечатать лист, откройте файл index.html из папки проекта в браузере и печатайте на двух сторонах с переворотом по длинному краю.</p>
+  </section>
+</div>
+
+<script>
+// CORE START
+const N = 8, T = 4;
+
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Grid g[y][x] holds a stack (bottom → top) of {id, up}; up = 0 means the front face looks up.
+function initGrid() {
+  return Array.from({ length: N }, (_, y) => Array.from({ length: N }, (_, x) => [{ id: y * N + x, up: 0 }]));
+}
+const transpose = g => g[0].map((_, x) => g.map(row => row[x]));
+
+// Fold the whole stack along the vertical line between columns k-1 and k.
+// side 'a' moves the columns left of the line, 'b' the ones to the right.
+// 'over' lays the moving part on top, 'under' tucks it beneath; either way it flips and its layer order reverses.
+function foldCols(g, k, side, dir) {
+  const w = g[0].length;
+  const moving = x => (side === 'a' ? x < k : x >= k);
+  const cols = new Map();
+  for (let x = 0; x < w; x++) if (!moving(x)) cols.set(x, g.map(row => row[x].slice()));
+  for (let x = 0; x < w; x++) {
+    if (!moving(x)) continue;
+    const nx = 2 * k - 1 - x;
+    const base = cols.get(nx) || g.map(() => []);
+    const flipped = g.map(row => row[x].slice().reverse().map(e => ({ id: e.id, up: 1 - e.up })));
+    cols.set(nx, base.map((stk, y) => (dir === 'over' ? stk.concat(flipped[y]) : flipped[y].concat(stk))));
+  }
+  const xs = [...cols.keys()].sort((a, b) => a - b);
+  return g.map((_, y) => xs.map(x => cols.get(x)[y]));
+}
+
+function applyFold(g, f) {
+  return f.axis === 'v' ? foldCols(g, f.k, f.side, f.dir) : transpose(foldCols(transpose(g), f.k, f.side, f.dir));
+}
+
+const LEVELS = { easy: [2, 3], mid: [4, 5], hard: [6, 8] };
+
+function generate(seed, level = 'mid', decoy = 0.15) {
+  const R = rng(seed * 7919 + 17);
+  const [lo, hi] = LEVELS[level];
+  let folds, states, g;
+  for (let attempt = 0; attempt < 5000; attempt++) {
+    g = initGrid(); folds = []; states = [g];
+    while (g.length > T || g[0].length > T) {
+      const axes = [];
+      if (g[0].length > T) axes.push('v');
+      if (g.length > T) axes.push('h');
+      const axis = axes[Math.floor(R() * axes.length)];
+      const size = axis === 'v' ? g[0].length : g.length;
+      const ks = [];
+      for (let k = 1; k < size; k++) if (Math.max(k, size - k) >= T) ks.push(k);
+      const f = { axis, k: ks[Math.floor(R() * ks.length)], side: R() < 0.5 ? 'a' : 'b', dir: R() < 0.62 ? 'over' : 'under', w: g[0].length, h: g.length };
+      g = applyFold(g, f);
+      folds.push(f); states.push(g);
+    }
+    if (folds.length >= lo && folds.length <= hi) break;
+  }
+
+  // Paint the faces: whatever looks up from the final square is one colour, whatever looks down is the other.
+  const topColor = R() < 0.5 ? 'B' : 'W', botColor = topColor === 'B' ? 'W' : 'B';
+  const faces = Array.from({ length: N * N }, () => ['N', 'N']);
+  for (const row of g) for (const stk of row) {
+    const top = stk[stk.length - 1], bot = stk[0];
+    faces[top.id][top.up] = topColor;
+    faces[bot.id][1 - bot.up] = botColor;
+  }
+  let decoys = 0;
+  for (const f of faces) for (let s = 0; s < 2; s++) {
+    if (f[s] === 'N' && R() < decoy) { f[s] = R() < 0.5 ? 'B' : 'W'; decoys++; }
+  }
+
+  const unders = folds.filter(f => f.dir === 'under').length;
+  let switches = 0;
+  for (let i = 1; i < folds.length; i++) if (folds[i].axis !== folds[i - 1].axis) switches++;
+  const score = folds.length + unders * 0.6 + switches * 0.4 + decoy * 6;
+  const stars = Math.max(1, Math.min(5, Math.round((score - 1.5) / 2)));
+  return { seed, level, decoy, folds, states, faces, topColor, decoys, stars };
+}
+
+// Check: replay the folds and confirm both outer faces of the 4×4 are solid.
+function verify(p) {
+  let g = initGrid();
+  for (const f of p.folds) g = applyFold(g, f);
+  if (g.length !== T || g[0].length !== T) return false;
+  const bot = p.topColor === 'B' ? 'W' : 'B';
+  return g.every(row => row.every(stk => {
+    const t = stk[stk.length - 1], b = stk[0];
+    return p.faces[t.id][t.up] === p.topColor && p.faces[b.id][1 - b.up] === bot;
+  }));
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+
+function describe(f) {
+  const n = f.axis === 'v' ? (f.side === 'a' ? f.k : f.w - f.k) : (f.side === 'a' ? f.k : f.h - f.k);
+  const where = f.dir === 'over' ? 'поверх листа' : 'под лист';
+  if (f.axis === 'v') {
+    const adj = f.side === 'a' ? plural(n, 'левый', 'левых', 'левых') : plural(n, 'правый', 'правых', 'правых');
+    const noun = plural(n, 'столбец', 'столбца', 'столбцов');
+    return n === 1 ? `Перегните ${adj} столбец ${where}` : `Перегните ${n} ${adj} ${noun} ${where}`;
+  }
+  if (n === 1) return `Перегните ${f.side === 'a' ? 'верхнюю' : 'нижнюю'} строку ${where}`;
+  const adj = f.side === 'a' ? plural(n, 'верхнюю', 'верхние', 'верхних') : plural(n, 'нижнюю', 'нижние', 'нижних');
+  return `Перегните ${n} ${adj} ${plural(n, 'строку', 'строки', 'строк')} ${where}`;
+}
+// CORE END
+
+const COLORS = [
+  ['Жёлтый', '#d9d23a'], ['Сиреневый', '#a98bd0'], ['Красный', '#e2474b'],
+  ['Оранжевый', '#f0a23a'], ['Бирюзовый', '#4fb5ad'], ['Серый', '#b4b0bf'],
+];
+const $ = id => document.getElementById(id);
+const ui = { color: null, showSol: false, puzzle: null };
+
+function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+function renderSheet(el, faces, side, numberAt) {
+  el.innerHTML = '';
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    // The back is seen after turning the sheet like a page, so columns read right to left.
+    const id = side === 0 ? y * N + x : y * N + (N - 1 - x);
+    const d = document.createElement('div');
+    d.className = 'cell ' + faces[id][side];
+    if (numberAt === id && side === 0) d.innerHTML = `<span class="num">${ui.puzzle.seed}.</span>`;
+    el.appendChild(d);
+  }
+}
+
+const PAPER = { B: '#1d1b1f', W: '#fbfbf8' };
+function cellFill(c, sheet) { return c === 'N' ? sheet : PAPER[c]; }
+
+function stepSvg(g, faces, f, sheet, view = 'top') {
+  const cs = 18, gap = 2, pad = 6;
+  const w = g[0].length, h = g.length;
+  const W = w * (cs + gap) - gap + pad * 2, H = h * (cs + gap) - gap + pad * 2;
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img">`;
+  s += `<rect x="0" y="0" width="${W}" height="${H}" fill="${sheet}"/>`;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const stk = g[y][x];
+    const e = view === 'top' ? stk[stk.length - 1] : stk[0];
+    const c = view === 'top' ? faces[e.id][e.up] : faces[e.id][1 - e.up];
+    const px = view === 'top' ? x : w - 1 - x;
+    s += `<rect x="${pad + px * (cs + gap)}" y="${pad + y * (cs + gap)}" width="${cs}" height="${cs}" fill="${cellFill(c, sheet)}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`;
+  }
+  if (f) {
+    const ink = 'var(--ink)';
+    if (f.axis === 'v') {
+      const lx = pad + f.k * (cs + gap) - gap / 2;
+      const mx = f.side === 'a' ? 0 : lx, mw = f.side === 'a' ? lx : W - lx;
+      s += `<rect x="${mx}" y="0" width="${mw}" height="${H}" fill="#fff" fill-opacity=".28"/>`;
+      s += `<line x1="${lx}" y1="0" x2="${lx}" y2="${H}" stroke="#d1233f" stroke-width="2.5" stroke-dasharray="${f.dir === 'over' ? '6 4' : '8 3 2 3'}"/>`;
+    } else {
+      const ly = pad + f.k * (cs + gap) - gap / 2;
+      const my = f.side === 'a' ? 0 : ly, mh = f.side === 'a' ? ly : H - ly;
+      s += `<rect x="0" y="${my}" width="${W}" height="${mh}" fill="#fff" fill-opacity=".28"/>`;
+      s += `<line x1="0" y1="${ly}" x2="${W}" y2="${ly}" stroke="#d1233f" stroke-width="2.5" stroke-dasharray="${f.dir === 'over' ? '6 4' : '8 3 2 3'}"/>`;
+    }
+  }
+  return s + '</svg>';
+}
+
+function render() {
+  const seed = Math.max(1, Math.min(999999, parseInt($('seed').value, 10) || 1));
+  const level = $('level').value;
+  const decoy = parseInt($('decoy').value, 10) / 100;
+  $('decoyVal').textContent = Math.round(decoy * 100) + '%';
+  const p = generate(seed, level, decoy);
+  ui.puzzle = p;
+  const color = ui.color || COLORS[(seed - 1) % COLORS.length][1];
+  document.documentElement.style.setProperty('--sheet', color);
+  [...$('swatches').children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === color)));
+
+  // Print the number on a neutral front cell, as the real sheets do.
+  const neutral = p.faces.map((f, i) => (f[0] === 'N' ? i : -1)).filter(i => i >= 0);
+  renderSheet($('front'), p.faces, 0, neutral.length ? neutral[(seed * 13) % neutral.length] : -1);
+  renderSheet($('back'), p.faces, 1);
+  $('capNo').textContent = `№ ${seed}`;
+
+  const cnt = s => p.faces.reduce((a, f) => a + (f[0] === s) + (f[1] === s), 0);
+  const ok = verify(p);
+  $('meta').innerHTML =
+    `<span>Сгибов <b>${p.folds.length}</b></span>` +
+    `<span>Чёрных граней <b>${cnt('B')}</b></span><span>Белых граней <b>${cnt('W')}</b></span>` +
+    `<span>Ложных <b>${p.decoys}</b></span>` +
+    `<span>Оценка <span class="stars" aria-label="${p.stars} из 5">${'■'.repeat(p.stars)}${'□'.repeat(5 - p.stars)}</span></span>` +
+    `<span>Проверка <b>${ok ? 'решаемо' : 'ошибка'}</b></span>`;
+
+  const items = p.folds.map((f, i) =>
+    `<li><span class="n">Шаг ${i + 1} · ${f.w}×${f.h} → ${p.states[i + 1][0].length}×${p.states[i + 1].length}</span>${stepSvg(p.states[i], p.faces, f, color)}<p>${describe(f)}</p></li>`);
+  const last = p.states[p.states.length - 1];
+  items.push(`<li class="final"><span class="n">Готово · 4×4</span><div class="final-pair">` +
+    `<div>${stepSvg(last, p.faces, null, color, 'top')}Сверху: ${p.topColor === 'B' ? 'чёрная' : 'белая'}</div>` +
+    `<div>${stepSvg(last, p.faces, null, color, 'bottom')}Снизу: ${p.topColor === 'B' ? 'белая' : 'чёрная'}</div></div></li>`);
+  $('steps').innerHTML = items.join('');
+  $('steps').hidden = !ui.showSol;
+  $('solBox').hidden = ui.showSol;
+  $('toast').textContent = '';
+  store('kvadrigami', JSON.stringify({ seed, level, decoy: $('decoy').value, color: ui.color }));
+}
+
+function init() {
+  COLORS.forEach(([name, c]) => {
+    const b = document.createElement('button');
+    b.className = 'sw'; b.type = 'button'; b.dataset.c = c; b.style.background = c;
+    b.setAttribute('aria-label', name); b.title = name;
+    b.onclick = () => { ui.color = c; render(); };
+    $('swatches').appendChild(b);
+  });
+  try {
+    const saved = JSON.parse(load('kvadrigami') || 'null');
+    if (saved) {
+      $('seed').value = saved.seed; $('level').value = saved.level; $('decoy').value = saved.decoy; ui.color = saved.color || null;
+    }
+  } catch (e) {}
+  const m = /^#n(\d+)$/.exec(location.hash);
+  if (m) $('seed').value = m[1];
+
+  $('seed').addEventListener('input', render);
+  $('level').addEventListener('change', render);
+  $('decoy').addEventListener('input', render);
+  $('next').onclick = () => { $('seed').value = Math.min(999999, (parseInt($('seed').value, 10) || 0) + 1); render(); };
+  $('prev').onclick = () => { $('seed').value = Math.max(1, (parseInt($('seed').value, 10) || 2) - 1); render(); };
+  $('toggleSol').onclick = () => {
+    ui.showSol = !ui.showSol;
+    $('toggleSol').textContent = ui.showSol ? 'Скрыть решение' : 'Показать решение';
+    $('toggleSol').setAttribute('aria-expanded', String(ui.showSol));
+    render();
+  };
+  $('copy').onclick = () => {
+    const p = ui.puzzle;
+    const data = JSON.stringify({
+      number: p.seed, level: p.level, top: p.topColor,
+      front: Array.from({ length: N }, (_, y) => p.faces.slice(y * N, y * N + N).map(f => f[0]).join('')),
+      back: Array.from({ length: N }, (_, y) => p.faces.slice(y * N, y * N + N).map(f => f[1]).join('')),
+      folds: p.folds.map(f => ({ axis: f.axis, line: f.k, moves: f.side, dir: f.dir, text: describe(f) })),
+    }, null, 2);
+    navigator.clipboard.writeText(data)
+      .then(() => { $('toast').textContent = 'Задание скопировано в буфер обмена.'; })
+      .catch(() => { $('toast').textContent = 'Браузер не дал доступ к буферу обмена. Попробуйте открыть файл локально.'; });
+  };
+  render();
+}
+init();
+</script>
