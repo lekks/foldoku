@@ -149,7 +149,23 @@ function printOptions(): PrintOptions {
   };
 }
 
-/** Builds a PDF and hands it to the browser as a download. */
+// Inside a Claude artifact viewer, plain downloads are blocked and files go through the host's `downloads`
+// capability, which asks the viewer to confirm. A standalone copy of the page has no `window.claude`.
+interface HostSaver { save(r: { filename: string; data: Blob }): Promise<unknown> }
+const host = (window as { claude?: { use(name: 'downloads'): Promise<HostSaver | null> } }).claude;
+const hostSaver: Promise<HostSaver | null> = host ? host.use('downloads').catch(() => null) : Promise.resolve(null);
+
+async function save(name: string, blob: Blob): Promise<void> {
+  const saver = await hostSaver;
+  if (saver) { await saver.save({ filename: name, data: blob }); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Builds a PDF and hands it to the viewer as a file to save. */
 async function download(name: string, make: (o: PrintOptions) => { bytes(): Promise<Uint8Array> }): Promise<void> {
   const o = printOptions();
   store(PRINT_KEY, JSON.stringify(o));
@@ -158,14 +174,12 @@ async function download(name: string, make: (o: PrintOptions) => { bytes(): Prom
     // Labels are drawn with the page font, which may still be loading.
     await document.fonts.ready;
     const bytes = await make(o).bytes();
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
-    const a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    await save(name, new Blob([bytes as BlobPart], { type: 'application/pdf' }));
     $('printMsg').textContent = `Готово: ${name}. Печатайте в масштабе 100 % с двух сторон.`;
   } catch (e) {
-    $('printMsg').textContent = `Не удалось собрать PDF: ${e instanceof Error ? e.message : String(e)}`;
+    const code = (e as { code?: string } | null)?.code;
+    $('printMsg').textContent = code === 'declined' ? 'Сохранение отменено.'
+      : `Не удалось сохранить PDF: ${e instanceof Error ? e.message : (e as { message?: string } | null)?.message ?? String(e)}`;
   }
 }
 

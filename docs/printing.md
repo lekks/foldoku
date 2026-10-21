@@ -104,5 +104,5 @@ that respect it (Acrobat, some others) preselect 100 % and the right duplex mode
    on paper (roadmap 3.5). The calibration procedure has not been tried by players.
 4. **No crease guides on the diagonals.** Only the grid is printed. Faint diagonal ticks
    at the cell corners could help with diagonal folds without giving the solution away.
-5. **Downloads inside sandboxed previews** (like a Claude artifact) may be blocked by the
-   host. The standalone page `dist/index.html` downloads normally.
+5. **Downloads inside a Claude artifact** go through the host's `downloads` capability
+   (the viewer confirms each file); the standalone page uses a plain Blob link.
