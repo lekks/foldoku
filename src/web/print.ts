@@ -23,13 +23,15 @@ export interface PrintOptions {
   dy: number;
   /** Add the answer page. */
   solution: boolean;
+  /** Cell size in mm; the folded square is four cells wide. */
+  cell: number;
 }
 
-/** Cell size in mm: the square comes out 88 mm wide, close to the original cards. */
-export const CELL = 22;
+/** Cell sizes offered, in mm: the folded square is 48–88 mm wide. Larger cells fold more easily. */
+export const CELLS: readonly number[] = [12, 14, 16, 18, 20, 22];
+export const DEFAULT_CELL = 16;
 /** Colour runs this far past the cut line, so a slightly shifted back still reaches the edge. */
 export const BLEED = 2.5;
-const SIZE = N * CELL;
 const MARGIN = 14;
 
 /** Russian text as an image; `size` is the font size in mm, lines wrap at `maxWidth` mm. */
@@ -37,9 +39,9 @@ export interface Label { image: PdfImage; w: number; h: number }
 export type Labeler = (text: string, size: number, maxWidth: number, bold?: boolean) => Label;
 
 /** Top-left corner of the sheet on the page: centred, so mirroring the page keeps it in place. */
-export function sheetOrigin(paper: PaperSize): { x: number; y: number } {
+export function sheetOrigin(paper: PaperSize, cell: number): { x: number; y: number } {
   const [W, H] = PAPERS[paper];
-  return { x: (W - SIZE) / 2, y: (H - SIZE) / 2 };
+  return { x: (W - N * cell) / 2, y: (H - N * cell) / 2 };
 }
 
 /**
@@ -78,7 +80,8 @@ function drawScene(pg: PdfPage, sc: Scene, x: number, y: number, cellLines: bool
 }
 
 /** One side of the sheet with colour bled past its edges, drawn with its top-left corner at (x, y). */
-function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, sheet: string, x: number, y: number): void {
+function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, sheet: string, x: number, y: number, CELL: number): void {
+  const SIZE = N * CELL;
   const ink = (cx: number, cy: number, q: 'n' | 'e' | 's' | 'w') => inkOf(paintAt(p.faces, side, cx, cy, q), q, sheet);
   const b = BLEED, L = N - 1;
   for (let i = 0; i < N; i++) {
@@ -97,7 +100,7 @@ function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, sheet: string, x: number
 }
 
 /** Corner marks for cutting, placed outside the bleed. Only on the front: its print is the reference. */
-function cropMarks(pg: PdfPage, x: number, y: number): void {
+function cropMarks(pg: PdfPage, x: number, y: number, SIZE: number): void {
   const g = BLEED + 1.5, len = 6;
   pg.save().stroke('#000000', 0.2);
   for (const [cx, sx] of [[x, -1], [x + SIZE, 1]] as const) for (const [cy, sy] of [[y, -1], [y + SIZE, 1]] as const) {
@@ -119,20 +122,21 @@ const KIND: Readonly<Record<MoveKind, string>> = { full: '', flap: ' · част
 /** Front, back and, optionally, the answer page of one puzzle. */
 export function puzzlePdf(p: Puzzle, sheet: string, o: PrintOptions, label: Labeler): PdfDoc {
   const [W, H] = PAPERS[o.paper];
-  const { x, y } = sheetOrigin(o.paper);
+  const { x, y } = sheetOrigin(o.paper, o.cell);
+  const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
   const doc = new PdfDoc(`Foldoku ${p.seed}`, o.flip);
   const head = `Foldoku · № ${p.seed} · ${LEVEL_NAME[p.level]}`;
 
   const front = doc.page(W, H);
-  drawSheet(front, p, 0, sheet, x, y);
-  cropMarks(front, x, y);
-  put(front, label(`${head} · лицевая сторона`, 3.4, SIZE, true), x, y - BLEED - 14);
-  put(front, label('Вырежьте квадрат по меткам на углах. Сложите его по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона чёрная, другая белая.', 2.8, SIZE), x, y + SIZE + BLEED + 6);
+  drawSheet(front, p, 0, sheet, x, y, o.cell);
+  cropMarks(front, x, y, SIZE);
+  put(front, label(`${head} · лицевая сторона`, 3.4, TEXT, true), x, y - BLEED - 14);
+  put(front, label('Вырежьте квадрат по меткам на углах. Сложите его по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона чёрная, другая белая.', 2.8, TEXT), x, y + SIZE + BLEED + 6);
 
   const back = doc.page(W, H);
   back.save().transform(backMatrix(o));
-  drawSheet(back, p, 1, sheet, x, y);
-  put(back, label(`${head} · оборот`, 3.4, SIZE, true), x, y - BLEED - 14);
+  drawSheet(back, p, 1, sheet, x, y, o.cell);
+  put(back, label(`${head} · оборот`, 3.4, TEXT, true), x, y - BLEED - 14);
   back.restore();
 
   if (o.solution) answerPage(doc.page(W, H), p, sheet, label);
@@ -182,22 +186,24 @@ function answerPage(pg: PdfPage, p: Puzzle, sheet: string, label: Labeler): void
  */
 export function calibrationPdf(o: PrintOptions, label: Labeler): PdfDoc {
   const [W, H] = PAPERS[o.paper];
-  const { x, y } = sheetOrigin(o.paper);
+  // The target sits at the page centre, where every sheet size has its centre too.
+  const { x, y } = sheetOrigin(o.paper, o.cell);
+  const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
   const doc = new PdfDoc('Foldoku calibration', o.flip);
   const cx = W / 2, cy = y + SIZE / 2;
   const outline = (pg: PdfPage) => pg.save().stroke('#808080', 0.25, [2, 1.5]).rect(x, y, SIZE, SIZE, 'S').restore();
 
   const front = doc.page(W, H);
   outline(front);
-  cropMarks(front, x, y);
+  cropMarks(front, x, y, SIZE);
   front.save().stroke('#000000', 0.15);
   front.line(cx - 12, cy, cx + 12, cy).line(cx, cy - 12, cx, cy + 12);
   for (const r of [2, 5, 9]) front.circle(cx, cy, r);
   front.restore();
   let t = y - BLEED - 22;
-  t += put(front, label('Калибровка двусторонней печати · лицевая сторона', 3.4, SIZE, true), x, t) + 2;
-  put(front, label('Напечатайте этот файл на одном листе с двух сторон. Проколите лист иглой точно в центре креста.', 2.8, SIZE), x, t);
-  put(front, label(`Текущий сдвиг оборота: X ${fmt(o.dx)} мм, Y ${fmt(o.dy)} мм. Переворот по ${o.flip === 'long' ? 'длинному' : 'короткому'} краю.`, 2.6, SIZE), x, y + SIZE + BLEED + 6);
+  t += put(front, label('Калибровка двусторонней печати · лицевая сторона', 3.4, TEXT, true), x, t) + 2;
+  put(front, label('Напечатайте этот файл на одном листе с двух сторон. Проколите лист иглой точно в центре креста.', 2.8, TEXT), x, t);
+  put(front, label(`Текущий сдвиг оборота: X ${fmt(o.dx)} мм, Y ${fmt(o.dy)} мм. Переворот по ${o.flip === 'long' ? 'длинному' : 'короткому'} краю.`, 2.6, TEXT), x, y + SIZE + BLEED + 6);
 
   const back = doc.page(W, H);
   back.save().transform(backMatrix(o));
@@ -219,10 +225,10 @@ export function calibrationPdf(o: PrintOptions, label: Labeler): PdfDoc {
   }
   back.text('X', cx + A + 2.4, cy - R - 0.8, 2.2);
   back.text('Y', cx - R - 1.5, cy + A + 4.4, 2.2, 'center');
-  put(back, label('Ось X — вправо, ось Y — вниз. Деления по 1 мм, тонкие линии через 0,5 мм.', 2.6, SIZE), x, cy + A + 8);
+  put(back, label('Ось X — вправо, ось Y — вниз. Деления по 1 мм, тонкие линии через 0,5 мм.', 2.6, TEXT), x, cy + A + 8);
   t = y - BLEED - 22;
-  t += put(back, label('Калибровка · оборот', 3.4, SIZE, true), x, t) + 2;
-  put(back, label('Найдите прокол на сетке и запишите его координаты X и Y. Прибавьте их к сдвигу оборота в генераторе и напечатайте калибровку ещё раз: прокол должен попасть в ноль.', 2.8, SIZE), x, t);
+  t += put(back, label('Калибровка · оборот', 3.4, TEXT, true), x, t) + 2;
+  put(back, label('Найдите прокол на сетке и запишите его координаты X и Y. Прибавьте их к сдвигу оборота в генераторе и напечатайте калибровку ещё раз: прокол должен попасть в ноль.', 2.8, TEXT), x, t);
   back.restore();
   return doc;
 }

@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { generate, N } from '../src/core/index.ts';
-import { backMatrix, calibrationPdf, CELL, PAPERS, puzzlePdf, sheetOrigin } from '../src/web/print.ts';
+import { backMatrix, calibrationPdf, CELLS, PAPERS, puzzlePdf, sheetOrigin } from '../src/web/print.ts';
 import type { Labeler, PrintOptions } from '../src/web/print.ts';
 
 const apply = (m: readonly number[], x: number, y: number): [number, number] => [m[0]! * x + m[2]! * y + m[4]!, m[1]! * x + m[3]! * y + m[5]!];
 const close = (a: readonly number[], b: readonly number[]) => a.every((v, i) => Math.abs(v - b[i]!) < 1e-9);
 
 for (const paper of ['a4', 'letter'] as const) for (const flip of ['long', 'short'] as const) {
-  test(`every back cell lies behind its front cell: ${paper}, ${flip} edge`, () => {
+  for (const CELL of CELLS) test(`every back cell lies behind its front cell: ${paper}, ${flip} edge, ${CELL} mm`, () => {
     const [W, H] = PAPERS[paper];
-    const { x, y } = sheetOrigin(paper);
+    const { x, y } = sheetOrigin(paper, CELL);
     const m = backMatrix({ paper, flip, dx: 0, dy: 0 });
     for (let cy = 0; cy < N; cy++) for (let cx = 0; cx < N; cx++) {
       const fx = x + (cx + 0.5) * CELL, fy = y + (cy + 0.5) * CELL;
@@ -30,7 +30,7 @@ for (const paper of ['a4', 'letter'] as const) for (const flip of ['long', 'shor
 }
 
 const stub: Labeler = (text, size) => ({ image: { w: 2, h: 1, channels: 1, data: new Uint8Array([0, 255]) }, w: text.length * size * 0.5, h: size * 1.3 });
-const options: PrintOptions = { paper: 'a4', flip: 'long', dx: 0.5, dy: -1, solution: true };
+const options: PrintOptions = { paper: 'a4', flip: 'long', dx: 0.5, dy: -1, solution: true, cell: 16 };
 
 /** Checks the cross-reference table: every entry must point at its object. */
 function assertWellFormed(pdf: Uint8Array, pages: number): void {

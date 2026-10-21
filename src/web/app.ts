@@ -3,7 +3,7 @@
 import { bbox, describe, generate, isDiagonal, N, verify } from '../core/index.ts';
 import type { Level, MoveKind, Puzzle, Tech } from '../core/index.ts';
 import { canvasLabeler } from './labels.ts';
-import { calibrationPdf, puzzlePdf } from './print.ts';
+import { calibrationPdf, CELLS, DEFAULT_CELL, puzzlePdf } from './print.ts';
 import type { Flip, PaperSize, PrintOptions } from './print.ts';
 import { numberCell, sheetSvg, stepSvg } from './render.ts';
 import type { GenerateArgs, WorkerReply, WorkerRequest } from './worker.ts';
@@ -146,6 +146,7 @@ function printOptions(): PrintOptions {
     dx: mm('dx'),
     dy: mm('dy'),
     solution: input('withSol').checked,
+    cell: CELLS.includes(Number(select('cell').value)) ? Number(select('cell').value) : DEFAULT_CELL,
   };
 }
 
@@ -192,9 +193,10 @@ function initPrint(): void {
       input('dx').value = String(saved.dx ?? 0);
       input('dy').value = String(saved.dy ?? 0);
       input('withSol').checked = saved.solution ?? true;
+      select('cell').value = String(saved.cell ?? DEFAULT_CELL);
     }
   } catch { /* ignore a broken saved state */ }
-  for (const id of ['paper', 'flip', 'dx', 'dy', 'withSol']) $(id).addEventListener('change', () => store(PRINT_KEY, JSON.stringify(printOptions())));
+  for (const id of ['paper', 'cell', 'flip', 'dx', 'dy', 'withSol']) $(id).addEventListener('change', () => store(PRINT_KEY, JSON.stringify(printOptions())));
   $('pdf').onclick = () => {
     const p = ui.puzzle;
     if (p) void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, sheetColor(p), o, canvasLabeler));

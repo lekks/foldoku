@@ -8,15 +8,18 @@ the page itself, under «Как распечатать, чтобы сторон�
 
 | page | content |
 |------|---------|
-| 1 | front of the sheet: 8×8 cells of 22 mm (176 mm square), bleed, crop marks, title, a one-line rule |
+| 1 | front of the sheet: 8×8 cells of 12–22 mm (16 mm by default: a 128 mm sheet), bleed, crop marks, title, a one-line rule |
 | 2 | back of the sheet, laid out to sit exactly behind page 1 |
 | 3 | optional answer page: every step as a diagram with its instruction, then both faces of the result |
 
 The calibration file has two pages: a target on the front and a millimetre grid behind it.
 
-Paper is A4 or US Letter, portrait. The 22 mm cell gives an 88 mm square when folded, close
-to the original cards, and leaves at least 17 mm of margin on both papers, which is more
-than any printer's non-printable border.
+Paper is A4 or US Letter, portrait. The player picks the cell size (`CELLS` in
+`src/web/print.ts`): 12 mm folds into a 48 mm square, 22 mm into 88 mm. Even the largest
+leaves 17 mm of margin on both papers, more than any printer's non-printable border.
+Smaller cells need more careful folding, since the square can be eight layers thick.
+The calibration target sits at the page centre, which is the sheet centre for every size,
+so one calibration serves all sizes.
 
 ## 2. Registration
 
