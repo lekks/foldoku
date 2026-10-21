@@ -108,7 +108,7 @@ Paper testers rate the tiers in the right order. No tested sheet has a
 | 3.1 | Batch generation with filters (tier, techniques, maximum time) into a candidate pool |
 | 3.2 | Curation tool: review candidates and accept or reject them, writing accepted JSON into `puzzles/` |
 | 3.3 | Book assembly: pick N puzzles along a difficulty curve, assign final numbers |
-| 3.4 | PDF export: duplex registration, bleed, sheet number placement, answer key pages |
+| 3.4 | PDF export: duplex registration, bleed, sheet number placement, answer key pages. ◐ One puzzle per file with calibration is done ([printing.md](printing.md)); books and combined answer keys remain |
 | 3.5 | Print proof: one physical test print checking duplex alignment and colours |
 
 **Exit criterion:** one command builds the PDF from `puzzles/`, and the printed proof

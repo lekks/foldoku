@@ -2,7 +2,10 @@
 
 import { bbox, describe, generate, isDiagonal, N, verify } from '../core/index.ts';
 import type { Level, MoveKind, Puzzle, Tech } from '../core/index.ts';
-import { sheetSvg, stepSvg } from './render.ts';
+import { canvasLabeler } from './labels.ts';
+import { calibrationPdf, puzzlePdf } from './print.ts';
+import type { Flip, PaperSize, PrintOptions } from './print.ts';
+import { numberCell, sheetSvg, stepSvg } from './render.ts';
 import type { GenerateArgs, WorkerReply, WorkerRequest } from './worker.ts';
 import workerSource from 'virtual:worker-source';
 
@@ -11,12 +14,14 @@ const COLORS: readonly (readonly [string, string])[] = [
   ['Оранжевый', '#f0a23a'], ['Бирюзовый', '#4fb5ad'], ['Серый', '#b4b0bf'],
 ];
 const STORAGE_KEY = 'foldoku';
+const PRINT_KEY = 'foldoku-print';
 
 const $ = <E extends HTMLElement = HTMLElement>(id: string): E => document.getElementById(id) as E;
 const input = (id: string) => $<HTMLInputElement>(id);
 const select = (id: string) => $<HTMLSelectElement>(id);
 
 const ui: { color: string | null; showSol: boolean; puzzle: Puzzle | null } = { color: null, showSol: false, puzzle: null };
+const sheetColor = (p: Puzzle) => ui.color ?? COLORS[(p.seed - 1) % COLORS.length]![1];
 
 function store(k: string, v: string): void { try { localStorage.setItem(k, v); } catch { /* storage may be unavailable */ } }
 function load(k: string): string | null { try { return localStorage.getItem(k); } catch { return null; } }
@@ -80,14 +85,11 @@ function show(): void {
   const p = ui.puzzle;
   if (!p) return;
   const seed = p.seed;
-  const color = ui.color ?? COLORS[(seed - 1) % COLORS.length]![1];
+  const color = sheetColor(p);
   document.documentElement.style.setProperty('--sheet', color);
   for (const b of $('swatches').children) b.setAttribute('aria-pressed', String((b as HTMLElement).dataset['c'] === color));
 
-  // Print the number on a neutral front cell, as the real sheets do.
-  const neutral = p.faces.map((f, i) => (Object.values(f[0]).every(v => v === 'N') ? i : -1)).filter(i => i >= 0);
-  const numberAt = neutral.length ? neutral[(seed * 13) % neutral.length]! : -1;
-  $('front').innerHTML = sheetSvg(p.faces, 0, color, numberAt, `${seed}.`);
+  $('front').innerHTML = sheetSvg(p.faces, 0, color, numberCell(p), `${seed}.`);
   $('back').innerHTML = sheetSvg(p.faces, 1, color);
   $('capNo').textContent = `№ ${seed}`;
 
@@ -136,6 +138,56 @@ function exportJson(p: Puzzle): string {
   }, null, 2);
 }
 
+function printOptions(): PrintOptions {
+  const mm = (id: string) => Math.max(-10, Math.min(10, Math.round((parseFloat(input(id).value.replace(',', '.')) || 0) * 10) / 10));
+  return {
+    paper: select('paper').value as PaperSize,
+    flip: select('flip').value as Flip,
+    dx: mm('dx'),
+    dy: mm('dy'),
+    solution: input('withSol').checked,
+  };
+}
+
+/** Builds a PDF and hands it to the browser as a download. */
+async function download(name: string, make: (o: PrintOptions) => { bytes(): Promise<Uint8Array> }): Promise<void> {
+  const o = printOptions();
+  store(PRINT_KEY, JSON.stringify(o));
+  $('printMsg').textContent = 'Готовлю PDF…';
+  try {
+    // Labels are drawn with the page font, which may still be loading.
+    await document.fonts.ready;
+    const bytes = await make(o).bytes();
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    $('printMsg').textContent = `Готово: ${name}. Печатайте в масштабе 100 % с двух сторон.`;
+  } catch (e) {
+    $('printMsg').textContent = `Не удалось собрать PDF: ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+function initPrint(): void {
+  try {
+    const saved = JSON.parse(load(PRINT_KEY) ?? 'null') as Partial<PrintOptions> | null;
+    if (saved) {
+      select('paper').value = saved.paper ?? 'a4';
+      select('flip').value = saved.flip ?? 'long';
+      input('dx').value = String(saved.dx ?? 0);
+      input('dy').value = String(saved.dy ?? 0);
+      input('withSol').checked = saved.solution ?? true;
+    }
+  } catch { /* ignore a broken saved state */ }
+  for (const id of ['paper', 'flip', 'dx', 'dy', 'withSol']) $(id).addEventListener('change', () => store(PRINT_KEY, JSON.stringify(printOptions())));
+  $('pdf').onclick = () => {
+    const p = ui.puzzle;
+    if (p) void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, sheetColor(p), o, canvasLabeler));
+  };
+  $('calib').onclick = () => void download('foldoku-calibration.pdf', o => calibrationPdf(o, canvasLabeler));
+}
+
 function init(): void {
   for (const [name, c] of COLORS) {
     const b = document.createElement('button');
@@ -177,6 +229,7 @@ function init(): void {
       .then(() => { $('toast').textContent = 'Задание скопировано в буфер обмена.'; })
       .catch(() => { $('toast').textContent = 'Браузер не дал доступ к буферу обмена. Попробуйте открыть страницу локально.'; });
   };
+  initPrint();
   request();
 }
 

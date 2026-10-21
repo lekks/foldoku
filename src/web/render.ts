@@ -1,9 +1,10 @@
-// SVG drawings of sheets and fold steps. Pure string builders: no DOM, so they also run in Node.
+// Drawings of sheets and fold steps. A drawing is first built as a scene of polygons and lines, which is then
+// written out as SVG for the page or as PDF for printing. Pure: no DOM, so it also runs in Node.
 
 import { bbox, decode, movesAt, N } from '../core/index.ts';
-import type { CellPaint, Move, Paint, Quarter, Solid, State } from '../core/index.ts';
+import type { Box, CellPaint, Direction, Move, Paint, Puzzle, Quarter, Solid, State } from '../core/index.ts';
 
-const PAPER: Readonly<Record<Solid, string>> = { B: '#1d1b1f', W: '#fbfbf8' };
+export const PAPER: Readonly<Record<Solid, string>> = { B: '#1d1b1f', W: '#fbfbf8' };
 /** Corners of each quarter inside a unit cell (the third corner is the cell centre). */
 const QUAD: Readonly<Record<Quarter, readonly [readonly [number, number], readonly [number, number]]>> = {
   n: [[0, 0], [1, 0]], e: [[1, 0], [1, 1]], s: [[1, 1], [0, 1]], w: [[0, 1], [0, 0]],
@@ -17,50 +18,81 @@ const SHADE: Readonly<Record<Quarter, readonly [string, number]>> = {
 const MIRQ: Readonly<Record<Quarter, Quarter>> = { n: 'n', s: 's', e: 'w', w: 'e' };
 
 /** Solid mixes instead of translucent overlays, so print and SVG converters get the same colours. */
-function mix(hex: string, to: string, t: number): string {
+export function mix(hex: string, to: string, t: number): string {
   const a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16);
   const ch = (sh: number) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t);
   return '#' + [16, 8, 0].map(sh => ch(sh).toString(16).padStart(2, '0')).join('');
 }
 
-function quarter(x0: number, y0: number, cs: number, q: Quarter, color: Paint, sheet: string): string {
-  const [[ax, ay], [bx, by]] = QUAD[q];
-  const pts = `${x0 + ax * cs},${y0 + ay * cs} ${x0 + bx * cs},${y0 + by * cs} ${x0 + cs / 2},${y0 + cs / 2}`;
-  // A thin stroke in the same colour hides the seam between two quarters of one half.
-  const fill = color === 'N' ? mix(sheet, SHADE[q][0], SHADE[q][1]) : PAPER[color];
-  return `<polygon points="${pts}" fill="${fill}" stroke="${fill}" stroke-width="${cs / 60}" stroke-linejoin="round"/>`;
-}
+/** Ink of one quarter: black, white, or the sheet colour with the pyramid shading. */
+export const inkOf = (color: Paint, q: Quarter, sheet: string): string => (color === 'N' ? mix(sheet, SHADE[q][0], SHADE[q][1]) : PAPER[color]);
 
 /**
- * One printed side of the sheet. The back is drawn as seen after turning the sheet like a page,
- * so columns read right to left. `number` is printed on the front cell `numberAt`.
+ * Paint of the quarter shown at column x, row y of one printed side. The back is seen after turning the
+ * sheet like a page, so its columns read right to left and its east and west swap.
  */
-export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, sheet: string, numberAt = -1, number = ''): string {
-  const cs = 100, gap = 10, pad = 16, W = N * (cs + gap) - gap + pad * 2;
-  let s = `<svg viewBox="0 0 ${W} ${W}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${side ? 'Оборот' : 'Лицевая сторона'} листа">`;
-  s += `<rect width="${W}" height="${W}" fill="${sheet}"/>`;
+export function paintAt(faces: readonly CellPaint[], side: 0 | 1, x: number, y: number, q: Quarter): Paint {
+  const id = side === 0 ? y * N + x : y * N + (N - 1 - x);
+  return faces[id]![side][side ? MIRQ[q] : q];
+}
+
+/** The front cell that carries the sheet's number: a fully neutral one, as on the real sheets. */
+export function numberCell(p: Puzzle): number {
+  const neutral = p.faces.map((f, i) => (Object.values(f[0]).every(v => v === 'N') ? i : -1)).filter(i => i >= 0);
+  return neutral.length ? neutral[(p.seed * 13) % neutral.length]! : -1;
+}
+
+export interface Poly { pts: readonly number[]; fill: string; faded: boolean }
+export interface Scene {
+  w: number;
+  h: number;
+  /** Cell size, for stroke widths. */
+  cs: number;
+  polys: Poly[];
+  /** Cell outlines, drawn as faint lines over the paint. */
+  cells: { x: number; y: number }[];
+  fold: { x1: number; y1: number; x2: number; y2: number; dir: Direction } | null;
+  number: { x: number; y: number; text: string } | null;
+}
+
+function quarterPoly(x0: number, y0: number, cs: number, q: Quarter, fill: string, faded = false): Poly {
+  const [[ax, ay], [bx, by]] = QUAD[q];
+  return { pts: [x0 + ax * cs, y0 + ay * cs, x0 + bx * cs, y0 + by * cs, x0 + cs / 2, y0 + cs / 2], fill, faded };
+}
+
+/** One printed side of the sheet; `gap` separates cells on screen and is 0 for print. */
+export function sheetScene(faces: readonly CellPaint[], side: 0 | 1, sheet: string, cs: number, gap: number, pad: number, numberAt = -1, number = ''): Scene {
+  const W = N * (cs + gap) - gap + pad * 2;
+  const sc: Scene = { w: W, h: W, cs, polys: [], cells: [], fold: null, number: null };
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-    const id = side === 0 ? y * N + x : y * N + (N - 1 - x);
     const x0 = pad + x * (cs + gap), y0 = pad + y * (cs + gap);
-    for (const q of QUARTERS) s += quarter(x0, y0, cs, q, faces[id]![side][side ? MIRQ[q] : q], sheet);
-    s += `<rect x="${x0}" y="${y0}" width="${cs}" height="${cs}" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="2"/>`;
-    if (side === 0 && id === numberAt) {
-      s += `<text x="${x0 + cs / 2}" y="${y0 + cs / 2 + 9}" text-anchor="middle" fill="#000" fill-opacity=".55">${number}</text>`;
-    }
+    for (const q of QUARTERS) sc.polys.push(quarterPoly(x0, y0, cs, q, inkOf(paintAt(faces, side, x, y, q), q, sheet)));
+    sc.cells.push({ x: x0, y: y0 });
+    if (side === 0 && y * N + x === numberAt) sc.number = { x: x0 + cs / 2, y: y0 + cs / 2, text: number };
   }
-  return s + '</svg>';
+  return sc;
+}
+
+/** End points of a fold line across a state's extent, in cell units. */
+export function foldEnds(f: Move, b: Box): [number, number, number, number] {
+  if (f.t === 'v') return [f.c, b.y0, f.c, b.y1 + 1];
+  if (f.t === 'h') return [b.x0, f.c, b.x1 + 1, f.c];
+  if (f.t === 'd') {
+    const x1 = Math.max(b.x0, b.y0 + f.c), x2 = Math.min(b.x1 + 1, b.y1 + 1 + f.c);
+    return [x1, x1 - f.c, x2, x2 - f.c];
+  }
+  const x1 = Math.max(b.x0, f.c - b.y1 - 1), x2 = Math.min(b.x1 + 1, f.c - b.y0);
+  return [x1, f.c - x1, x2, f.c - x2];
 }
 
 /**
  * A folded state seen from above (or below, mirrored), with the move about to happen: its moving part faded
  * and its line drawn as a valley (over) or mountain (under) line.
  */
-export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top'): string {
-  const cs = 18, gap = 2, pad = 6;
+export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top', cs = 18, gap = 2, pad = 6): Scene {
   const b = bbox(m);
-  const W = b.w * (cs + gap) - gap + pad * 2, H = b.h * (cs + gap) - gap + pad * 2;
+  const sc: Scene = { w: b.w * (cs + gap) - gap + pad * 2, h: b.h * (cs + gap) - gap + pad * 2, cs, polys: [], cells: [], fold: null, number: null };
   const ux = (u: number) => pad - gap / 2 + (u - b.x0) * (cs + gap), uy = (u: number) => pad - gap / 2 + (u - b.y0) * (cs + gap);
-  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img">`;
   for (const p of m.values()) {
     const d = decode(p.X, p.Y);
     let q = d.q;
@@ -68,17 +100,44 @@ export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, s
     const c = view === 'top' ? faces[e.id]![e.up][e.q] : faces[e.id]![e.up === 0 ? 1 : 0][e.q];
     let px = d.cx - b.x0;
     if (view !== 'top') { px = b.w - 1 - px; q = MIRQ[q]; }
-    const x0 = pad + px * (cs + gap), y0 = pad + (d.cy - b.y0) * (cs + gap);
-    const tri = quarter(x0, y0, cs, q, c, sheet);
-    s += f && movesAt(f, p) ? `<g opacity=".42">${tri}</g>` : tri;
+    sc.polys.push(quarterPoly(pad + px * (cs + gap), pad + (d.cy - b.y0) * (cs + gap), cs, q, inkOf(c, q, sheet), !!f && movesAt(f, p)));
   }
   if (f) {
-    let x1: number, y1: number, x2: number, y2: number;
-    if (f.t === 'v') { x1 = x2 = f.c; y1 = b.y0; y2 = b.y1 + 1; }
-    else if (f.t === 'h') { y1 = y2 = f.c; x1 = b.x0; x2 = b.x1 + 1; }
-    else if (f.t === 'd') { x1 = Math.max(b.x0, b.y0 + f.c); x2 = Math.min(b.x1 + 1, b.y1 + 1 + f.c); y1 = x1 - f.c; y2 = x2 - f.c; }
-    else { x1 = Math.max(b.x0, f.c - b.y1 - 1); x2 = Math.min(b.x1 + 1, f.c - b.y0); y1 = f.c - x1; y2 = f.c - x2; }
-    s += `<line x1="${ux(x1)}" y1="${uy(y1)}" x2="${ux(x2)}" y2="${uy(y2)}" stroke="#d1233f" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="${f.dir === 'over' ? '6 4' : '8 3 2 3'}"/>`;
+    const [x1, y1, x2, y2] = foldEnds(f, b);
+    sc.fold = { x1: ux(x1), y1: uy(y1), x2: ux(x2), y2: uy(y2), dir: f.dir };
+  }
+  return sc;
+}
+
+/** Valley (over) and mountain (under) dash patterns, in cell sizes. */
+export const DASH: Readonly<Record<Direction, readonly number[]>> = { over: [1 / 3, 2 / 9], under: [4 / 9, 1 / 6, 1 / 9, 1 / 6] };
+export const FOLD_INK = '#d1233f';
+export const FADED = 0.42;
+
+export function toSvg(sc: Scene, label = ''): string {
+  let s = `<svg viewBox="0 0 ${sc.w} ${sc.h}" xmlns="http://www.w3.org/2000/svg" role="img"${label ? ` aria-label="${label}"` : ''}>`;
+  for (const p of sc.polys) {
+    // A thin stroke in the same colour hides the seam between two quarters of one half.
+    const tri = `<polygon points="${p.pts.join(' ')}" fill="${p.fill}" stroke="${p.fill}" stroke-width="${sc.cs / 60}" stroke-linejoin="round"/>`;
+    s += p.faded ? `<g opacity="${FADED}">${tri}</g>` : tri;
+  }
+  for (const c of sc.cells) {
+    s += `<rect x="${c.x}" y="${c.y}" width="${sc.cs}" height="${sc.cs}" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="${sc.cs / 50}"/>`;
+  }
+  if (sc.number) {
+    s += `<text x="${sc.number.x}" y="${sc.number.y + sc.cs * 0.09}" text-anchor="middle" fill="#000" fill-opacity=".55">${sc.number.text}</text>`;
+  }
+  if (sc.fold) {
+    const { x1, y1, x2, y2, dir } = sc.fold;
+    s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${FOLD_INK}" stroke-width="${sc.cs * 0.14}" stroke-linecap="round" stroke-dasharray="${DASH[dir].map(d => +(d * sc.cs).toFixed(2)).join(' ')}"/>`;
   }
   return s + '</svg>';
+}
+
+export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, sheet: string, numberAt = -1, number = ''): string {
+  return toSvg(sheetScene(faces, side, sheet, 100, 10, 16, numberAt, number), side ? 'Оборот листа' : 'Лицевая сторона листа');
+}
+
+export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top'): string {
+  return toSvg(stepScene(m, faces, f, sheet, view));
 }

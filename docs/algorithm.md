@@ -21,7 +21,8 @@ Russian UI terms appear in parentheses so the document can be mapped onto the pa
 | `src/core/validity.ts` | `isValid` | §5 |
 | `src/core/generate.ts` | `proposeMove`, `findTuck`, `tryFolds`, `generate`, `verify` | §4.3, §6–8 |
 | `src/core/describe.ts` | Russian move instructions | §9 |
-| `src/web/render.ts` | `sheetSvg`, `stepSvg` | §9 |
+| `src/web/render.ts` | `sheetScene`, `stepScene` → `toSvg` | §9 |
+| `src/web/print.ts`, `pdf.ts`, `labels.ts` | two-sided PDF and calibration sheet | [printing.md](printing.md) |
 | `src/web/app.ts`, `worker.ts` | page logic, generation in a Web Worker | §6.5 |
 | `test/` | checker fixtures, property tests, golden snapshots | §5, §10 |
 
@@ -416,8 +417,8 @@ The weights are hand-picked and not calibrated (§10).
 
 ### Engineering
 10. **Thin test coverage.** `test/` has checker fixtures, property tests and golden
-    snapshots over a sample of 24 settings, but no unit tests of geometry helpers or
-    rendering yet.
+    snapshots over a sample of 24 settings, and print registration tests, but no unit
+    tests of geometry helpers or rendering yet.
 11. **Determinism is tied to the code.** Any change in the order of RNG calls changes
     every sheet with a given number. Published puzzles must be stored as data, or the
     generator must be versioned.

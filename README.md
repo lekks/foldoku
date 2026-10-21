@@ -29,13 +29,14 @@ flipped on the long edge.
 
 ```
 src/core/   the generator: geometry, folding, validity check, search. No DOM
-src/web/    the page: markup, styles, SVG rendering, UI, Web Worker
+src/web/    the page: markup, styles, SVG rendering, UI, Web Worker, PDF export
 scripts/    build script (esbuild; inlines everything into one HTML file)
 test/       checker fixtures, property tests, golden snapshots
-docs/       algorithm description and roadmap
+docs/       algorithm description, printing, roadmap
 ```
 
 - [How the generator works](docs/algorithm.md)
+- [Printing: duplex registration and calibration](docs/printing.md)
 - [Roadmap](docs/roadmap.md)
 
 ## Status
