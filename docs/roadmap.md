@@ -1,6 +1,6 @@
 # Roadmap
 
-From the working prototype (`index.html` on branch `prototype`) to a production
+From the working prototype (branch `prototype`) to a production
 generator. The algorithm, limitations and improvement ideas this plan builds on are in
 [algorithm.md](algorithm.md). References like "§10.4" point there.
 
@@ -23,13 +23,13 @@ validity check and step-by-step solutions. Commits `2425a6f` → `dbd5c2a`.
 
 | # | Deliverable | Notes |
 |---|-------------|-------|
-| 1.1 | **Repository layout**: `core/` (pure generator, no DOM), `web/` (current page using `core`), `cli/`, `test/`, `docs/` | The core already has no DOM dependencies, so this is mostly a move |
-| 1.2 | **Language and tooling**: TypeScript in strict mode, ES modules, formatter and linter, `package.json` scripts | Types pay off for `Move`, `State` and the puzzle format, which are easy to misuse |
-| 1.3 | **Tests** (`node:test` or vitest): checker fixtures (valid / invalid states), property tests over many seeds (`verify`, exactly 64 quarters per colour, determinism), unit tests for geometry helpers | Turns the ad-hoc node scripts from development into permanent tests |
+| 1.1 | ✅ **Repository layout**: `src/core/` (pure generator, no DOM), `src/web/` (page), `scripts/` (build), `test/`, `docs/`; `cli/` comes with 1.6 | Done: output identical to the prototype on 270 compared puzzles |
+| 1.2 | ◐ **Language and tooling**: TypeScript in strict mode, ES modules, esbuild, `package.json` scripts. Formatter and linter still to add | Types pay off for `Move`, `State` and the puzzle format, which are easy to misuse |
+| 1.3 | ◐ **Tests** (`node:test`): checker fixtures, property tests over a sample of settings (`verify`, colour counts, determinism) are in. Unit tests for geometry helpers still to add | Turned the ad-hoc node scripts from development into permanent tests |
 | 1.4 | **Puzzle format v1 + generator versioning**, see below | Needed before anything is published or printed |
-| 1.5 | **Golden snapshots**: a fixed set of (seed, params) → stored puzzle JSON, compared on every test run | Catches accidental output changes |
+| 1.5 | ✅ **Golden snapshots**: 24 fixed inputs → digest of the puzzle (`test/golden.json`), compared on every test run | Catches accidental output changes. Store full JSON once the puzzle format (1.4) exists |
 | 1.6 | **CLI**: `foldoku generate --seed 1..500 --level hard --out puzzles/` | Batch generation without a browser |
-| 1.7 | **Fix known bugs**: real retry limit in `tryFolds` (§10.4), test the Web Worker in a real browser (§10.14) | |
+| 1.7 | ◐ **Fix known bugs**: real retry limit in `tryFolds` (§10.4). The Web Worker is now checked in headless Chrome | The retry fix may change output: needs a golden refresh |
 | 1.8 | **CI**: tests + lint on every push | Needs a git remote: decide hosting |
 
 **Exit criterion:** `npm test` is green in CI. The page and the CLI produce identical

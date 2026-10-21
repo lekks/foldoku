@@ -1,0 +1,24 @@
+{
+  "name": "foldoku",
+  "version": "0.1.0",
+  "description": "Generator of solvable paper-folding puzzles: fold an 8×8 sheet into a 4×4 square, black on one side and white on the other.",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "typecheck": "tsc -p .",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "test:update-golden": "UPDATE_GOLDEN=1 node --test test/golden.test.ts",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

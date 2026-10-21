@@ -1,0 +1,85 @@
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fold<span>oku</span></h1>
+      <p class="lede">Генератор складных головоломок. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона полностью чёрная, другая полностью белая. Каждое задание получено честным складыванием, поэтому решение есть всегда.</p>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Параметры">
+    <div class="field">
+      <label for="seed">Номер задания</label>
+      <input id="seed" type="number" min="1" max="999999" value="101">
+    </div>
+    <div class="field">
+      <label for="level">Сложность</label>
+      <select id="level">
+        <option value="easy">Лёгкая · 2–3 сгиба</option>
+        <option value="mid" selected>Средняя · 4–5 сгибов</option>
+        <option value="hard">Трудная · 6–8 сгибов</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="diag">Диагонали</label>
+      <select id="diag">
+        <option value="0">Без диагоналей</option>
+        <option value="1" selected>1 диагональный сгиб</option>
+        <option value="2">2 диагональных сгиба</option>
+        <option value="3">3 диагональных сгиба</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="tech">Приёмы</label>
+      <select id="tech">
+        <option value="0">Только целые сгибы</option>
+        <option value="1" selected>+ сгибы части слоёв</option>
+        <option value="2">+ задвигания внутрь</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="decoy">Ложные клетки <span class="val" id="decoyVal">15%</span></label>
+      <input id="decoy" type="range" min="0" max="50" step="5" value="15">
+    </div>
+    <div class="field">
+      <span class="lab" id="colorLab">Цвет листа</span>
+      <div class="swatches" id="swatches" role="group" aria-labelledby="colorLab"></div>
+    </div>
+    <div class="spacer"></div>
+    <button id="prev" class="ghost" type="button" aria-label="Предыдущее задание">←</button>
+    <button id="next" type="button">Новое задание</button>
+  </section>
+
+  <section class="board" id="board" aria-label="Лист" aria-live="polite">
+    <figure>
+      <figcaption><b>Лицевая сторона</b><span id="capNo"></span></figcaption>
+      <div class="sheet" id="front"></div>
+    </figure>
+    <figure>
+      <figcaption><b>Оборот</b><span>перевёрнут как страница, справа налево</span></figcaption>
+      <div class="sheet" id="back"></div>
+    </figure>
+  </section>
+
+  <div class="meta" id="meta"></div>
+
+  <section class="steps-section" style="display:grid;gap:14px">
+    <div class="steps-head">
+      <h2>Решение</h2>
+      <div class="legend">
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/></svg>долина: перегнуть поверх</span>
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3"/></svg>гора: подогнуть под низ</span>
+        <button id="toggleSol" class="ghost" type="button" aria-expanded="false">Показать решение</button>
+        <button id="copy" class="ghost" type="button">Копировать JSON</button>
+      </div>
+    </div>
+    <div id="solBox" class="hidden-sol">Решение скрыто, чтобы не подсматривать. На схемах видна верхняя сторона стопки; бледным показана часть, которую сгибаем.</div>
+    <ol class="steps" id="steps" hidden></ol>
+    <p class="toast" id="toast" role="status"></p>
+    <p class="note">Целый сгиб переворачивает всю стопку по одну сторону линии. Сгиб части слоёв поднимает только верхний (или нижний) клапан, который держится за остальное лишь по линии сгиба. При задвигании клапан не ложится сверху, а уходит в карман между слоями. Каждый шаг проверяется как настоящее плоское складывание: сгибы на одном ребре не пересекаются, и бумага нигде не проходит сквозь бумагу. Ложные клетки — это чёрные и белые грани, которые в итоге оказываются спрятаны внутри квадрата. Чтобы распечатать лист, соберите проект (npm run build), откройте dist/index.html в браузере и печатайте на двух сторонах с переворотом по длинному краю.</p>
+  </section>
+
+  <footer>
+    <span>Foldoku — независимый проект с открытым кодом под лицензией Apache 2.0.</span>
+    <span>Не связан с издателями головоломок Manifold, «Квадригами» и Foldology. Названия принадлежат их правообладателям.</span>
+  </footer>
+</div>

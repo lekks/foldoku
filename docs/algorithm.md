@@ -1,14 +1,29 @@
 # Foldoku: generator algorithm
 
-This document describes how the Foldoku prototype in `index.html` generates puzzle
+This document describes how the Foldoku generator in `src/core/` generates puzzle
 sheets in the style of *Manifold* by Jérôme Morin-Drouin (Russian edition: «Квадригами»).
 Foldoku is an independent project, not affiliated with that puzzle's publishers. It is written for
 two kinds of readers: a developer who will rewrite this as production code, and an AI
-agent that has to reason about or extend the generator. Every rule here matches the
-code at commit `610c5f3` (branch `prototype`); identifiers in `code` are the names used
-there.
+agent that has to reason about or extend the generator. Identifiers in `code` are the
+names used in the source; the code map below says where each one lives.
 
 Russian UI terms appear in parentheses so the document can be mapped onto the page.
+
+### Code map
+
+| file | contents | sections |
+|------|----------|----------|
+| `src/core/types.ts` | `Layer`, `Position`, `State`, `Move` (`FullMove` / `FlapMove` / `TuckMove`), `Puzzle` | §3.5, §4 |
+| `src/core/rng.ts` | `rng` (mulberry32), `shuffle`, `pick` | §6.4 |
+| `src/core/geometry.ts` | `N`, `T`, `S`, quarters, `decode`, `NB`, `LINE`, `mirror`, `ap`, `compose` | §3 |
+| `src/core/state.ts` | `initState`, `bbox`, `isSquare`, `candidates`, `components`, `isSegment` | §3.5, §4.2 |
+| `src/core/fold.ts` | `applyFold`, `onSide`, `movesAt` | §4 |
+| `src/core/validity.ts` | `isValid` | §5 |
+| `src/core/generate.ts` | `proposeMove`, `findTuck`, `tryFolds`, `generate`, `verify` | §4.3, §6–8 |
+| `src/core/describe.ts` | Russian move instructions | §9 |
+| `src/web/render.ts` | `sheetSvg`, `stepSvg` | §9 |
+| `src/web/app.ts`, `worker.ts` | page logic, generation in a Web Worker | §6.5 |
+| `test/` | checker fixtures, property tests, golden snapshots | §5, §10 |
 
 ---
 
@@ -320,8 +335,10 @@ but not the solution. `level` changes the solution only through the search bound
 
 All 36 combinations of level × diag × tech: 0 failures, 0 verification errors.
 Typical time is 5–300 ms. Worst cases: about 3 s for hard with tucks, and about 6 s
-for 3 diagonals plus tucks. In the page, generation runs in a Web Worker built from
-the `<script id="core">` text. A newer request terminates the running worker.
+for 3 diagonals plus tucks. In the page, generation runs in a Web Worker
+(`src/web/worker.ts`, bundled into the page as a string and started from a Blob URL).
+A newer request terminates the running worker. In headless Chrome the worker answers
+in about 0.26 s for the default settings.
 
 ## 7. Painting the sheet
 
@@ -398,8 +415,9 @@ The weights are hand-picked and not calibrated (§10).
    tucks are visible only from the text.
 
 ### Engineering
-10. **Single HTML file, no tests in the repository.** The core is extracted for testing
-    by text markers (`// CORE START` / `// CORE END`).
+10. **Thin test coverage.** `test/` has checker fixtures, property tests and golden
+    snapshots over a sample of 24 settings, but no unit tests of geometry helpers or
+    rendering yet.
 11. **Determinism is tied to the code.** Any change in the order of RNG calls changes
     every sheet with a given number. Published puzzles must be stored as data, or the
     generator must be versioned.
@@ -408,9 +426,8 @@ The weights are hand-picked and not calibrated (§10).
 13. **Restricted move families.** A flap is a single connected component, never a
     union. A tuck has one uniform depth across all positions. There is at most one tuck
     per puzzle. There are no reverse folds, squash folds or slits.
-14. **Web Worker path is untested in a real browser.** Only the node and SVG rendering
-    paths were exercised. A fallback runs generation on the main thread if the worker
-    fails.
+14. **No automated browser test.** The Web Worker path was checked by hand in headless
+    Chrome. A fallback runs generation on the main thread if the worker fails.
 
 ## 11. Improvement ideas
 
