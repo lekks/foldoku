@@ -1,7 +1,8 @@
-# Kvadrigami sheet generator: algorithm
+# Foldoku: generator algorithm
 
-This document describes how the prototype in `index.html` generates puzzle sheets for
-*Kvadrigami* (Russian edition of *Manifold* by Jérôme Morin-Drouin). It is written for
+This document describes how the Foldoku prototype in `index.html` generates puzzle
+sheets in the style of *Manifold* by Jérôme Morin-Drouin (Russian edition: «Квадригами»).
+Foldoku is an independent project, not affiliated with that puzzle's publishers. It is written for
 two kinds of readers: a developer who will rewrite this as production code, and an AI
 agent that has to reason about or extend the generator. Every rule here matches the
 code at commit `610c5f3` (branch `prototype`); identifiers in `code` are the names used

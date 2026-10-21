@@ -28,7 +28,7 @@ validity check and step-by-step solutions. Commits `2425a6f` → `dbd5c2a`.
 | 1.3 | **Tests** (`node:test` or vitest): checker fixtures (valid / invalid states), property tests over many seeds (`verify`, exactly 64 quarters per colour, determinism), unit tests for geometry helpers | Turns the ad-hoc node scripts from development into permanent tests |
 | 1.4 | **Puzzle format v1 + generator versioning**, see below | Needed before anything is published or printed |
 | 1.5 | **Golden snapshots**: a fixed set of (seed, params) → stored puzzle JSON, compared on every test run | Catches accidental output changes |
-| 1.6 | **CLI**: `kvadrigami generate --seed 1..500 --level hard --out puzzles/` | Batch generation without a browser |
+| 1.6 | **CLI**: `foldoku generate --seed 1..500 --level hard --out puzzles/` | Batch generation without a browser |
 | 1.7 | **Fix known bugs**: real retry limit in `tryFolds` (§10.4), test the Web Worker in a real browser (§10.14) | |
 | 1.8 | **CI**: tests + lint on every push | Needs a git remote: decide hosting |
 
@@ -90,7 +90,7 @@ seed.
 | 2.2 | **Shortest-solution difficulty**: grade by the solver's minimum, not the generated path; reject sheets whose shortest solution is much shorter than intended | Fixes §10.5 |
 | 2.3 | **No wasted moves**: forbid moves that return to a visited state | Fixes §10.6 |
 | 2.4 | **Thickness limits**: maximum layers per position and per flap, tuned by folding real printouts | Fixes §10.3 |
-| 2.5 | **Calibration set**: encode a sample of original Manifold levels in the puzzle format, solve them, fit the score weights | Fixes §10.7. Check the legal side first, see open questions |
+| 2.5 | **Calibration set**: encode a sample of original Manifold levels in the puzzle format, solve them, fit the score weights | Fixes §10.7. **Internal analysis only**: original levels are someone else's work and never go into the public repo |
 | 2.6 | **Paper testing**: print about 20 generated sheets per tier and record solve time and failures | Ground truth for 2.4 and 2.5 |
 
 **Exit criterion:** for each tier, the shortest solutions fall in the intended band.
@@ -131,16 +131,27 @@ lines up front to back.
 Reverse folds and squash folds, tucks with depth varying by position, multi-component
 flaps, sheets with slits or non-square outlines, other grid sizes.
 
+Ideas from *Foldology*, which uses nearly the same mechanic. We borrow ideas, never its
+puzzles or artwork:
+- **Picture reveal**: instead of solid black/white, the folded square shows a picture
+  (one per side). The painting step (§7 of algorithm.md) maps any 4×4 image onto
+  the visible quarters, so this is mostly a new painting mode plus an image source.
+- **Tear-out booklet format** for printable sets, with difficulty growing page by page.
+
 ---
 
 ## Open questions
 
 These decide priorities and should be answered before Phase 1 ends:
 
-1. **Product.** A printed book, a web or mobile game, or both? Phase 3 and Phase 4 swap
-   order depending on the answer.
-2. **IP and licensing.** *Manifold* and «Квадригами» are commercial products. Before
-   publishing or selling sheets in this format, or encoding original levels (2.5),
-   check what is allowed. This may affect the name too.
+1. **Product.** ✅ Settled: a free, open-source web page where anyone generates their own
+   sheets. Phase 3 shrinks to printable output for one sheet or a small set. Phase 4
+   matters more. Audience: launch in Russian first, then English, with a bilingual UI.
+2. **IP and licensing.** ✅ Partly settled: the project is called **Foldoku**, licensed
+   under Apache-2.0, and states that it is independent. Still to do before launch: check
+   «Foldoku» in the trademark registers (FIPS, WIPO; classes 9, 28, 41) and check for
+   live patents on folding puzzles. *Manifold*, «Квадригами» and *Foldology* are
+   commercial products: their mechanics and ideas are free to use, their levels,
+   artwork and texts are not.
 3. **Hosting.** Where the git remote and CI live (affects 1.8).
 4. **TypeScript or plain JS** with JSDoc types (1.2). TypeScript is the recommendation.

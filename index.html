@@ -1,4 +1,4 @@
-<title>Генератор Квадригами</title>
+<title>Foldoku</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,6 +87,7 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .final-pair div { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
 .final-pair svg { width: 120px; }
 .hidden-sol { padding: 18px; background: var(--surface); border: 1px dashed var(--line); color: var(--muted); }
+footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 4px; }
 .note { font-size: 13px; color: var(--muted); max-width: 70ch; margin: 0; }
 .toast { font-size: 13px; color: var(--muted); min-height: 1.5em; }
 
@@ -100,8 +101,8 @@ figcaption b { color: var(--ink); font-weight: 600; }
 <div class="wrap">
   <header>
     <div>
-      <h1>Квадри<span>гами</span></h1>
-      <p class="lede">Генератор новых листов. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона полностью чёрная, другая полностью белая. Каждое задание получено честным складыванием, поэтому решение есть всегда.</p>
+      <h1>Fold<span>oku</span></h1>
+      <p class="lede">Генератор складных головоломок. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона полностью чёрная, другая полностью белая. Каждое задание получено честным складыванием, поэтому решение есть всегда.</p>
     </div>
   </header>
 
@@ -176,6 +177,11 @@ figcaption b { color: var(--ink); font-weight: 600; }
     <p class="toast" id="toast" role="status"></p>
     <p class="note">Целый сгиб переворачивает всю стопку по одну сторону линии. Сгиб части слоёв поднимает только верхний (или нижний) клапан, который держится за остальное лишь по линии сгиба. При задвигании клапан не ложится сверху, а уходит в карман между слоями. Каждый шаг проверяется как настоящее плоское складывание: сгибы на одном ребре не пересекаются, и бумага нигде не проходит сквозь бумагу. Ложные клетки — это чёрные и белые грани, которые в итоге оказываются спрятаны внутри квадрата. Чтобы распечатать лист, откройте файл index.html из папки проекта в браузере и печатайте на двух сторонах с переворотом по длинному краю.</p>
   </section>
+
+  <footer>
+    <span>Foldoku — независимый проект с открытым кодом под лицензией Apache 2.0.</span>
+    <span>Не связан с издателями головоломок Manifold, «Квадригами» и Foldology. Названия принадлежат их правообладателям.</span>
+  </footer>
 </div>
 
 <script id="core">
@@ -740,7 +746,7 @@ function show() {
   $('solBox').hidden = ui.showSol;
   $('toast').textContent = '';
   const st = settings();
-  store('kvadrigami', JSON.stringify({ seed: st.seed, level: st.level, diag: st.diag, tech: st.tech, decoy: $('decoy').value, color: ui.color }));
+  store('foldoku', JSON.stringify({ seed: st.seed, level: st.level, diag: st.diag, tech: st.tech, decoy: $('decoy').value, color: ui.color }));
 }
 
 function init() {
@@ -752,7 +758,7 @@ function init() {
     $('swatches').appendChild(b);
   });
   try {
-    const saved = JSON.parse(load('kvadrigami') || 'null');
+    const saved = JSON.parse(load('foldoku') || 'null');
     if (saved) {
       $('seed').value = saved.seed; $('level').value = saved.level; $('decoy').value = saved.decoy; $('diag').value = saved.diag ?? 1; $('tech').value = saved.tech ?? 1; ui.color = saved.color || null;
     }
