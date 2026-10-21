@@ -374,7 +374,10 @@ The weights are hand-picked and not calibrated (§10).
   page: column `x` becomes `7 − x`, and quarters `e` and `w` swap (`MIRQ`). This
   matches duplex printing flipped on the long edge.
 - The sheet number is printed on a fully neutral front cell, as on the real sheets.
-- Step diagrams (`stepSvg`) show the top face of the stack before each move, with
+- Drawings are built once as scenes of polygons and lines (`sheetScene`, `stepScene`
+  in `src/web/render.ts`) and written out either as SVG for the page (`toSvg`) or as
+  PDF for printing ([printing.md](printing.md)).
+- Step diagrams (`stepScene`) show the top face of the stack before each move, with
   the moving part faded. The fold line is drawn as a valley line (`6 4` dashes) for
   `over` or a mountain line (`8 3 2 3`) for `under`.
 - Instructions (`describe`) count rows and columns relative to the current bbox and
@@ -464,8 +467,9 @@ Roughly in order of value.
 9. **Better instructions.** A crease-pattern (mountain/valley) view of the flat sheet,
    step diagrams of both faces, an animated or 3D fold preview, and an interactive
    "fold it yourself" mode that uses the same engine.
-10. **Print pipeline.** PDF export with duplex registration marks, bleed and sheet
-    numbers, plus batch generation of a 100-sheet book with a difficulty curve.
+10. **Print pipeline.** Single-sheet PDF export with duplex registration, bleed,
+    calibration and an answer page is done ([printing.md](printing.md)). Still missing:
+    batch generation of a 100-sheet book with a difficulty curve.
 
 ## 12. References
 

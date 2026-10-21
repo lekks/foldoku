@@ -14,8 +14,9 @@ npm install
 npm run build        # → dist/index.html, one self-contained page
 ```
 
-Open `dist/index.html` in a browser to generate sheets. To print, use duplex printing
-flipped on the long edge.
+Open `dist/index.html` in a browser to generate sheets. The «Печать» block downloads a
+two-sided PDF (cell size 12–22 mm) and a calibration sheet that measures the printer's
+duplex offset; see [docs/printing.md](docs/printing.md).
 
 | command | what it does |
 |---------|--------------|
