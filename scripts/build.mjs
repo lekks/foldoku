@@ -37,6 +37,7 @@ const safeScript = js => js.replace(/<\/script/gi, '<\\/script');
 
 async function writePages(appJs) {
   const [head, body, css] = await Promise.all(['head.html', 'body.html', 'styles.css'].map(f => readFile(join(src, f), 'utf8')));
+  const analytics = process.env.ANALYTICS_HTML || '';
   const style = `<style>\n${css}</style>`;
   const script = `<script>${safeScript(appJs)}</script>`;
   const full = `<!doctype html>
@@ -45,6 +46,7 @@ async function writePages(appJs) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 ${head}${style}
+${analytics}
 </head>
 <body>
 ${body}${script}

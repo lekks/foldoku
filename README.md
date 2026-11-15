@@ -18,6 +18,12 @@ Open `dist/index.html` in a browser to generate sheets. The «Печать» blo
 two-sided PDF (cell size 12–22 mm) and a calibration sheet that measures the printer's
 duplex offset; see [docs/printing.md](docs/printing.md).
 
+To include an analytics snippet in the hosted page, set the optional `ANALYTICS_HTML`
+environment variable at build time. GitHub Pages builds read it from the repository
+variable of the same name. Without it, no analytics snippet is added; the artifact
+fragment never includes it. The snippet is published as part of the page, so do not
+put secrets in it and only accept code from trusted sources.
+
 | command | what it does |
 |---------|--------------|
 | `npm run dev` | rebuild `dist/` on every change in `src/` |
