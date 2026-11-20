@@ -45,6 +45,11 @@ export const NB: readonly (readonly (readonly [number, number, number])[])[] = (
   return nb;
 })();
 
+/** Three edge neighbours per facet, with -1 for a missing neighbour at the paper edge. */
+export const FACET_NEIGHBORS = Int16Array.from(NB.flatMap(neighbors => [
+  neighbors[0]![0], neighbors[1]![0], neighbors[2]?.[0] ?? -1,
+]));
+
 /** The signed quantity each line type compares with c·S. */
 export const LINE: Readonly<Record<LineType, (X: number, Y: number) => number>> = {
   v: (X) => X, h: (_X, Y) => Y, d: (X, Y) => X - Y, a: (X, Y) => X + Y,

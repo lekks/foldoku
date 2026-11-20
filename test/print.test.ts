@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { generate, N } from '../src/core/index.ts';
+import { N } from '../src/core/index.ts';
 import { backMatrix, batchAnswersPdf, batchPdf, calibrationPdf, CELLS, PAPERS, puzzlePdf, sheetOrigin } from '../src/web/print.ts';
 import type { Labeler, PrintOptions } from '../src/web/print.ts';
 import { DEFAULT_INK, sheetInk, stepScene } from '../src/web/render.ts';
+import { generate } from './wasm-generator.ts';
 
 const appearance = { ...DEFAULT_INK, sheet: '#d9d23a' };
 
@@ -52,7 +53,7 @@ function assertWellFormed(pdf: Uint8Array, pages: number): void {
 }
 
 test('puzzle PDF: front, back and answers', async () => {
-  const p = generate(101, 'hard', 0.2, 2, 2) ?? generate(101, 'mid', 0.2, 1, 2);
+  const p = generate(101, 'hard', 0.2, 2, 2);
   assert.ok(p);
   assertWellFormed(await puzzlePdf(p, appearance, options, stub).bytes(), 3);
   assertWellFormed(await puzzlePdf(p, appearance, { ...options, solution: false }, stub).bytes(), 2);

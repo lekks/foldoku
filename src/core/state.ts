@@ -1,3 +1,4 @@
+import { groupFacets } from './connectivity.ts';
 import { IDENTITY, LINE, N, NB, QI, QOFF, QS, S, T } from './geometry.ts';
 import type { Box, LineType, Position, State } from './types.ts';
 
@@ -9,13 +10,6 @@ export function initState(): State {
     m.set(X + ',' + Y, { X, Y, stack: [{ f: (y * N + x) * 4 + QI[q], id: y * N + x, q, up: 0, t: IDENTITY }] });
   }
   return m;
-}
-
-/** Copies positions and stacks; layers themselves are immutable and shared. */
-export function cloneState(m: State): State {
-  const out: State = new Map();
-  for (const [k, p] of m) out.set(k, { X: p.X, Y: p.Y, stack: p.stack.slice() });
-  return out;
 }
 
 export function bbox(m: State): Box {
@@ -31,8 +25,7 @@ export function bbox(m: State): Box {
 }
 
 /** The paper covers exactly a T×T square. */
-export function isSquare(m: State): boolean {
-  const b = bbox(m);
+export function isSquare(m: State, b = bbox(m)): boolean {
   return m.size === T * T * 4 && b.w === T && b.h === T;
 }
 
@@ -51,20 +44,15 @@ export function candidates(m: State, t: LineType): number[] {
 
 /** Pieces of paper among the positions matching pred that stay connected without leaving them. */
 export function components(m: State, pred: (p: Position) => boolean): Set<number>[] {
-  const inSet = new Map<number, number>();
-  for (const p of m.values()) if (pred(p)) for (const e of p.stack) inSet.set(e.f, -1);
+  const order = new Uint16Array(NB.length);
+  let count = 0;
+  for (const p of m.values()) if (pred(p)) for (const e of p.stack) order[count++] = e.f;
+  const grouped = groupFacets(order, count);
   const comps: Set<number>[] = [];
-  for (const f0 of inSet.keys()) {
-    if (inSet.get(f0) !== -1) continue;
-    const comp = new Set([f0]), todo = [f0];
-    inSet.set(f0, comps.length);
-    while (todo.length) {
-      const f = todo.pop()!;
-      for (const [g] of NB[f]!) {
-        if (inSet.get(g) === -1) { inSet.set(g, comps.length); comp.add(g); todo.push(g); }
-      }
-    }
-    comps.push(comp);
+  for (let i = 0; i < count; i++) {
+    const facet = grouped[i]!;
+    if (facet < 0) comps.push(new Set([~facet]));
+    else comps[comps.length - 1]!.add(facet);
   }
   return comps;
 }
@@ -73,9 +61,10 @@ export function components(m: State, pred: (p: Position) => boolean): Set<number
 export function isSegment(m: State, set: Set<number>, fromTop: boolean): boolean {
   for (const p of m.values()) {
     let inside = false;
-    const st = fromTop ? p.stack : p.stack.slice().reverse();
-    for (const e of st) {
-      if (set.has(e.f)) inside = true;
+    const { stack } = p;
+    for (let i = 0; i < stack.length; i++) {
+      const layer = stack[fromTop ? i : stack.length - 1 - i]!;
+      if (set.has(layer.f)) inside = true;
       else if (inside) return false;
     }
   }

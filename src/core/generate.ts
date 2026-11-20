@@ -1,3 +1,4 @@
+// TypeScript reference for the benchmark and the independent solution verifier.
 import { applyFold, onSide } from './fold.ts';
 import { ap, isDiagonal, mirror, N, QS, T } from './geometry.ts';
 import { pick, rng, shuffle, type Rng } from './rng.ts';
@@ -77,8 +78,8 @@ function usesOnlyFront(m: State): boolean {
 }
 
 /** One random walk from the flat sheet; succeeds only if it ends exactly as the T×T square with all quotas met. */
-function tryFolds(R: Rng, lo: number, hi: number, diag: number, tech: Tech, singleSided: boolean): Attempt | null {
-  let m = initState();
+function tryFolds(R: Rng, flat: State, lo: number, hi: number, diag: number, tech: Tech, singleSided: boolean): Attempt | null {
+  let m = flat;
   const folds: Move[] = [], states: State[] = [m];
   for (let step = 0; step < hi; step++) {
     const diagLeft = diag - folds.filter(isDiag).length;
@@ -99,7 +100,7 @@ function tryFolds(R: Rng, lo: number, hi: number, diag: number, tech: Tech, sing
     states.push(m);
     const nb = bbox(m);
     if (m.size < T * T * 4 || nb.w < T || nb.h < T) return null;
-    if (isSquare(m)) {
+    if (isSquare(m, nb)) {
       const okDiag = folds.filter(isDiag).length === diag;
       const okTech = (tech < 1 || folds.some(g => g.kind === 'flap' || g.kind === 'tuck')) && (tech < 2 || folds.some(g => g.kind === 'tuck'));
       return folds.length >= lo && okDiag && okTech && (!singleSided || usesOnlyFront(m)) ? { folds, states, m } : null;
@@ -119,9 +120,10 @@ export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag 
   lo = Math.max(lo, diag + 2, tech >= 2 ? 4 : 0);
   hi = Math.max(hi, lo + 1);
   let res: Attempt | null = null;
+  const flat = initState();
   // Exact fold counts are rare for some mixes, so the range widens until something fits.
   for (let relax = 0; !res && relax < 6; relax++) {
-    for (let attempt = 0; !res && attempt < 3000; attempt++) res = tryFolds(R, Math.max(2, lo - relax), hi + relax, diag, tech, singleSided);
+    for (let attempt = 0; !res && attempt < 3000; attempt++) res = tryFolds(R, flat, Math.max(2, lo - relax), hi + relax, diag, tech, singleSided);
   }
   if (!res) return null;
   const { folds, states, m } = res;

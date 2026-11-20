@@ -1,13 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { generate, verify } from '../src/core/index.ts';
+import { applyFold, initState } from '../src/core/index.ts';
+import { verify } from '../src/core/generate.ts';
 import { canonical, caseName, sampleCases } from './helpers.ts';
+import { generate } from './wasm-generator.ts';
 
 for (const c of sampleCases()) {
   test(`solvable and well-formed: ${caseName(c)}`, () => {
-    const p = generate(c.seed, c.level, c.decoy, c.diag, c.tech);
+    const p = generate(c.seed, c.level, c.decoy, c.diag, c.tech, c.singleSided);
     assert.ok(p, 'generator gave up');
     assert.equal(verify(p), true);
+    // JSON normalizes JS's signed zero to the integer zero stored by WASM.
+    let state = initState();
+    assert.equal(JSON.stringify([...p.states[0]!]), JSON.stringify([...state]));
+    for (const [i, move] of p.folds.entries()) {
+      state = applyFold(state, move);
+      assert.equal(JSON.stringify([...p.states[i + 1]!]), JSON.stringify([...state]), `state after fold ${i + 1}`);
+    }
     assert.equal(p.folds.filter(f => f.t === 'd' || f.t === 'a').length, c.diag);
     if (c.tech >= 1) assert.ok(p.folds.some(f => f.kind !== 'full'), 'expected a flap or a tuck');
     if (c.tech >= 2) assert.ok(p.folds.some(f => f.kind === 'tuck'), 'expected a tuck');

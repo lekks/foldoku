@@ -148,7 +148,7 @@ These decide priorities and should be answered before Phase 1 ends:
    sheets. Phase 3 shrinks to printable output for one sheet or a small set. Phase 4
    matters more. Audience: launch in Russian first, then English, with a bilingual UI.
 2. **IP and licensing.** ✅ Partly settled: the project is called **Foldoku**, licensed
-   under Apache-2.0, and states that it is independent. Still to do before launch: check
+   under PolyForm Noncommercial 1.0.0, and states that it is independent. Still to do before launch: check
    «Foldoku» in the trademark registers (FIPS, WIPO; classes 9, 28, 41) and check for
    live patents on folding puzzles. *Manifold*, «Квадригами» and *Foldology* are
    commercial products: their mechanics and ideas are free to use, their levels,

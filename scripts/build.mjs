@@ -7,10 +7,12 @@ import { build, context } from 'esbuild';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildGeneratorWasm, generatorSource } from './build-wasm.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = join(root, 'src', 'web');
 const dist = join(root, 'dist');
+const manifest = join(root, 'package.json');
 const watch = process.argv.includes('--watch');
 
 const common = { bundle: true, format: 'iife', target: 'es2022', charset: 'utf8', minify: !watch, logLevel: 'warning' };
@@ -22,11 +24,15 @@ const workerSource = {
   setup(b) {
     b.onResolve({ filter: /^virtual:worker-source$/ }, () => ({ path: 'worker-source', namespace: 'virtual' }));
     b.onLoad({ filter: /.*/, namespace: 'virtual' }, async () => {
-      const out = await build({ ...common, entryPoints: [join(src, 'worker.ts')], write: false, metafile: true });
+      const wasm = buildGeneratorWasm();
+      const out = await build({
+        ...common, entryPoints: [join(src, 'worker.ts')], write: false, metafile: true,
+        define: { FOLDOKU_WASM_BASE64: JSON.stringify(wasm.toString('base64')) },
+      });
       return {
         contents: `export default ${JSON.stringify(out.outputFiles[0].text)};`,
         loader: 'js',
-        watchFiles: Object.keys(out.metafile.inputs).map(f => resolve(root, f)),
+        watchFiles: [manifest, generatorSource, ...Object.keys(out.metafile.inputs).map(f => resolve(root, f))],
       };
     });
   },
@@ -36,7 +42,17 @@ const workerSource = {
 const safeScript = js => js.replace(/<\/script/gi, '<\\/script');
 
 async function writePages(appJs) {
-  const [head, body, css] = await Promise.all(['head.html', 'body.html', 'styles.css'].map(f => readFile(join(src, f), 'utf8')));
+  const [head, template, css, packageJson] = await Promise.all([
+    ...['head.html', 'body.html', 'styles.css'].map(f => readFile(join(src, f), 'utf8')),
+    readFile(manifest, 'utf8'),
+  ]);
+  const { version } = JSON.parse(packageJson);
+  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/.test(version)) {
+    throw new Error('Expected a release version in package.json');
+  }
+  const revision = process.env.GITHUB_SHA ?? '';
+  const buildVersion = /^[a-f0-9]{40}$/i.test(revision) ? `${version} · ${revision.slice(0, 7)}` : version;
+  const body = template.replace('<!-- FOLDOKU_VERSION -->', buildVersion);
   const analytics = process.env.ANALYTICS_HTML || '';
   const style = `<style>\n${css}</style>`;
   const script = `<script>${safeScript(appJs)}</script>`;

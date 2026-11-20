@@ -1,5 +1,4 @@
 import { ap, compose, LINE, mirror, S } from './geometry.ts';
-import { cloneState } from './state.ts';
 import type { Affine, Layer, Move, Position, State } from './types.ts';
 
 /** Is the position on the side of the line that moves? */
@@ -15,15 +14,21 @@ const flipLayer = (e: Layer, r: Affine): Layer => ({ f: e.f, id: e.id, q: e.q, u
  */
 export function applyFold(m: State, f: Move): State {
   const r = mirror(f.t, f.c);
-  const out = cloneState(m);
+  const out: State = new Map();
   const lifted: { X: number; Y: number; layers: Layer[] }[] = [];
-  for (const [key, p] of out) {
-    if (!onSide(f, p.X, p.Y)) continue;
-    const go = f.kind === 'full' ? p.stack : p.stack.filter(e => f.flap.has(e.f));
-    if (!go.length) continue;
-    p.stack = f.kind === 'full' ? [] : p.stack.filter(e => !f.flap.has(e.f));
-    if (!p.stack.length) out.delete(key);
-    lifted.push({ X: p.X, Y: p.Y, layers: go.slice().reverse().map(e => flipLayer(e, r)) });
+  for (const [key, { X, Y, stack }] of m) {
+    if (!onSide(f, X, Y)) {
+      out.set(key, { X, Y, stack: stack.slice() });
+      continue;
+    }
+    const moving: Layer[] = [], staying: Layer[] = [];
+    for (let i = stack.length - 1; i >= 0; i--) {
+      const layer = stack[i]!;
+      if (f.kind === 'full' || f.flap.has(layer.f)) moving.push(flipLayer(layer, r));
+      else staying.push(layer);
+    }
+    if (!moving.length || staying.length) out.set(key, { X, Y, stack: staying.reverse() });
+    if (moving.length) lifted.push({ X, Y, layers: moving });
   }
   for (const L of lifted) {
     const [X, Y] = ap(r, L.X, L.Y);
@@ -35,7 +40,7 @@ export function applyFold(m: State, f: Move): State {
       const at = f.dir === 'over' ? Math.max(0, n - f.depth) : Math.min(n, f.depth);
       dst.stack = dst.stack.slice(0, at).concat(L.layers, dst.stack.slice(at));
     } else if (f.dir === 'under') dst.stack = L.layers.concat(dst.stack);
-    else dst.stack = dst.stack.concat(L.layers);
+    else for (const layer of L.layers) dst.stack.push(layer);
     out.set(key, dst);
   }
   return out;

@@ -22,5 +22,8 @@
   "seed 217 easy diag 1 tech 2 decoy 0.15": "a40b486281989408",
   "seed 217 mid diag 1 tech 2 decoy 0.15": "a40b486281989408",
   "seed 227 easy diag 2 tech 2 decoy 0.15": "8e44e32bb95dde30",
-  "seed 227 mid diag 2 tech 2 decoy 0.15": "8e44e32bb95dde30"
+  "seed 227 mid diag 2 tech 2 decoy 0.15": "8e44e32bb95dde30",
+  "seed 101 mid diag 1 tech 1 decoy 0.15 single-sided": "5a5a6877e9a880bd",
+  "seed 101 mid diag 3 tech 2 decoy 0.15 single-sided": "ffbbc322cc423538",
+  "seed 101 hard diag 2 tech 2 decoy 0.2": "bf9caf96536f39ce"
 }

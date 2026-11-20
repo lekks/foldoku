@@ -7,7 +7,9 @@ by construction.
 
 ## Getting started
 
-Requires Node.js 22.18 or newer.
+Building and testing require Node.js 22.18 or newer, Clang++ and the LLVM
+WebAssembly linker. On Debian or Ubuntu, install the `clang` and `lld` packages.
+Set `CLANGXX` or `WASM_LD` to use a compiler or linker outside your PATH.
 
 ```sh
 npm install
@@ -20,6 +22,11 @@ solid dark side and a solid light side. The shades and neutral-cell pattern can 
 adjusted before printing. The «Печать» block downloads a PDF (cell
 size 12–22 mm) with an optional answer page. In duplex mode it also offers a
 calibration sheet for measuring the printer's offset. See [docs/printing.md](docs/printing.md).
+The standalone page embeds the WASM generator and runs it in a Web Worker.
+
+The footer shows the version from `package.json` and the short commit hash on
+GitHub Pages builds. Update the release version with
+`npm version <patch|minor|major> --no-git-tag-version` before publishing.
 
 To include an analytics snippet in the hosted page, set the optional `ANALYTICS_HTML`
 environment variable at build time. GitHub Pages builds read it from the repository
@@ -34,6 +41,17 @@ put secrets in it and only accept code from trusted sources.
 | `npm run typecheck` | type-check everything with `tsc` |
 | `npm run check` | typecheck + test + build |
 | `npm run test:update-golden` | accept intended changes to generator output |
+
+`node scripts/bench-generation.mjs` compares the published generator, the optimized
+TypeScript core, the WebAssembly connectivity kernel, and the full C++ search
+compiled to WebAssembly. It requires Clang, Clang++ and the LLVM WebAssembly linker
+(`WASM_LD` can point to its executable).
+Pass a baseline Git revision and round count to override `8605d7e` and three rounds.
+The benchmark checks the paint, moves, and intermediate states against the baseline.
+Set `FOLDOKU_BENCH_HTML=/tmp/foldoku-bench.html` to generate a standalone browser
+benchmark comparing the optimized TypeScript and full C++/WebAssembly variants.
+The TypeScript generator is a reference for the benchmark. The app and golden
+tests use the C++ generator.
 
 ## Layout
 
@@ -55,7 +73,11 @@ Prototype. See the roadmap for the path to a production version.
 
 ## License
 
-[Apache License 2.0](LICENSE). See [NOTICE](NOTICE).
+Foldoku is distributed under the [PolyForm Noncommercial License 1.0.0](LICENSE)
+starting with version 0.2.1. For commercial use outside that license, contact
+[lekks](https://github.com/lekks) for separate permission. See [NOTICE](NOTICE).
+
+Published versions through 0.2.0 remain available under Apache License 2.0.
 
 Foldoku is an independent project. It is not affiliated with or endorsed by the
 publishers of Manifold, «Квадригами» or Foldology; those names belong to their

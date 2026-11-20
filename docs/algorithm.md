@@ -19,7 +19,8 @@ Russian UI terms appear in parentheses so the document can be mapped onto the pa
 | `src/core/state.ts` | `initState`, `bbox`, `isSquare`, `candidates`, `components`, `isSegment` | §3.5, §4.2 |
 | `src/core/fold.ts` | `applyFold`, `onSide`, `movesAt` | §4 |
 | `src/core/validity.ts` | `isValid` | §5 |
-| `src/core/generate.ts` | `proposeMove`, `findTuck`, `tryFolds`, `generate`, `verify` | §4.3, §6–8 |
+| `src/core/wasm/generator.cpp` | Browser generator: folds, validity, search, painting | §4–8 |
+| `src/core/generate.ts` | TypeScript benchmark reference and independent test verifier | §4.3, §6–8 |
 | `src/core/describe.ts` | Russian move instructions | §9 |
 | `src/web/render.ts` | `sheetScene`, `stepScene` → `toSvg` | §9 |
 | `src/web/print.ts`, `pdf.ts`, `labels.ts` | two-sided PDF and calibration sheet | [printing.md](printing.md) |
@@ -385,8 +386,9 @@ The weights are hand-picked and not calibrated (§10).
   use Russian plural forms (`plural`).
 - JSON export: per cell, four letters in n, e, s, w order for each side, plus the move
   list (`kind`, `line`, `c`, `moves`, `dir`, `depth`, `layers`, `text`).
-- `verify(p)` replays the moves, runs `isValid` after each one, and checks that both
-  outer faces are solid.
+- The C++ generator replays the moves and checks each intermediate state before
+  returning a puzzle. The independent TypeScript verifier also checks the painted
+  outer faces in tests.
 
 ## 10. Limitations and known problems
 
@@ -431,8 +433,8 @@ The weights are hand-picked and not calibrated (§10).
 13. **Restricted move families.** A flap is a single connected component, never a
     union. A tuck has one uniform depth across all positions. There is at most one tuck
     per puzzle. There are no reverse folds, squash folds or slits.
-14. **No automated browser test.** The Web Worker path was checked by hand in headless
-    Chrome. A fallback runs generation on the main thread if the worker fails.
+14. **Browser coverage.** The WebAssembly worker path has a headless Chrome smoke
+    check outside CI. A worker or WASM startup failure is reported in the interface.
 
 ## 11. Improvement ideas
 

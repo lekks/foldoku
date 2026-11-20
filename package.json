@@ -1,10 +1,10 @@
 {
   "name": "foldoku",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Generator of solvable paper-folding puzzles: fold an 8×8 sheet into a 4×4 square, black on one side and white on the other.",
   "private": true,
   "type": "module",
-  "license": "Apache-2.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "engines": {
     "node": ">=22.18"
   },

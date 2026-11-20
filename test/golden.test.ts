@@ -5,8 +5,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { generate } from '../src/core/index.ts';
 import { caseName, digest, sampleCases } from './helpers.ts';
+import { generate } from './wasm-generator.ts';
 
 const file = new URL('./golden.json', import.meta.url);
 const update = process.env['UPDATE_GOLDEN'] === '1';
@@ -15,7 +15,7 @@ const golden: Record<string, string> = update ? {} : JSON.parse(readFileSync(fil
 for (const c of sampleCases()) {
   const name = caseName(c);
   test(`golden: ${name}`, () => {
-    const p = generate(c.seed, c.level, c.decoy, c.diag, c.tech);
+    const p = generate(c.seed, c.level, c.decoy, c.diag, c.tech, c.singleSided);
     assert.ok(p);
     if (update) golden[name] = digest(p);
     else assert.equal(digest(p), golden[name], 'output changed for this input');

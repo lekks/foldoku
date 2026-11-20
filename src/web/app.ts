@@ -1,6 +1,6 @@
 // The generator page: reads the controls, generates in a worker, draws the sheet and the solution.
 
-import { bbox, describe, generate, isDiagonal, N, verify } from '../core/index.ts';
+import { bbox, describe, isDiagonal, N } from '../core/index.ts';
 import type { Level, MoveKind, Puzzle, Tech } from '../core/index.ts';
 import { canvasLabeler } from './labels.ts';
 import { batchAnswersPdf, batchPdf, BATCH_CELLS, calibrationPdf, CELLS, DEFAULT_CELL, puzzlePdf } from './print.ts';
@@ -72,7 +72,8 @@ function settings(): Settings {
 }
 
 // Generation runs in a worker, so the page stays responsive on slow mixes.
-const gen: { worker: Worker | null; busy: boolean; id: number; args: GenerateArgs | null } = { worker: null, busy: false, id: 0, args: null };
+const gen: { worker: Worker | null; busy: boolean; id: number } = { worker: null, busy: false, id: 0 };
+const WORKER_ERROR = 'Не удалось запустить генератор. Откройте Foldoku в актуальной версии браузера.';
 
 function createWorker(): Worker {
   const url = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
@@ -85,8 +86,19 @@ function createWorker(): Worker {
 
 function startWorker(): Worker {
   const w = createWorker();
-  w.onmessage = (e: MessageEvent<WorkerReply>) => { gen.busy = false; if (e.data.id === gen.id) done(e.data.puzzle); };
-  w.onerror = () => { gen.worker = null; gen.busy = false; if (gen.args) done(generate(...gen.args)); };
+  w.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
+    if (gen.worker !== w || data.id !== gen.id) return;
+    gen.busy = false;
+    if ('error' in data) done(null, data.error);
+    else done(data.puzzle);
+  };
+  w.onerror = () => {
+    if (gen.worker !== w) return;
+    w.terminate();
+    gen.worker = null;
+    gen.busy = false;
+    done(null, WORKER_ERROR);
+  };
   return w;
 }
 
@@ -95,7 +107,6 @@ function request(): void {
   $('decoyVal').textContent = Math.round(st.decoy * 100) + '%';
   gen.id++;
   const args: GenerateArgs = [st.seed, st.level, st.decoy, st.diag, st.tech, st.singleSided];
-  gen.args = args;
   $('board').classList.add('busy');
   $('board').classList.toggle('single-sided', st.singleSided);
   ui.puzzle = null;
@@ -116,19 +127,20 @@ function request(): void {
     const msg: WorkerRequest = { id: gen.id, args };
     gen.worker.postMessage(msg);
   } catch {
+    gen.worker?.terminate();
     gen.worker = null;
     gen.busy = false;
-    done(generate(...args));
+    done(null, WORKER_ERROR);
   }
 }
 
-function done(p: Puzzle | null): void {
+function done(p: Puzzle | null, error = 'Не удалось подобрать сгибы для этих настроек. Попробуйте другой номер или меньше диагоналей.'): void {
   $('board').classList.remove('busy');
   if (!p) {
     $('front').replaceChildren();
     $('back').replaceChildren();
     $('capNo').textContent = '';
-    $('meta').textContent = 'Не удалось подобрать сгибы для этих настроек. Попробуйте другой номер или меньше диагоналей.';
+    $('meta').textContent = error;
     return;
   }
   $<HTMLButtonElement>('pdf').disabled = false;
@@ -155,14 +167,13 @@ function show(): void {
   // Measured in cells; a triangle is half a cell, a lone quarter is a quarter.
   const cnt = (c: 'B' | 'W') => p.faces.reduce((a, f) => a + f.reduce((t, face) => t + Object.values(face).filter(v => v === c).length, 0), 0) / 4;
   const kinds = (k: MoveKind) => p.folds.filter(f => f.kind === k).length;
-  const ok = verify(p);
   $('meta').innerHTML =
     `<span>Сгибов <b>${p.folds.length}</b></span><span>Диагональных <b>${p.folds.filter(f => isDiagonal(f.t)).length}</b></span>` +
     `<span>Частью слоёв <b>${kinds('flap')}</b></span><span>Задвиганий <b>${kinds('tuck')}</b></span>` +
     `<span>Тёмных клеток <b>${fmt(cnt('B'))}</b></span><span>Светлых клеток <b>${fmt(cnt('W'))}</b></span>` +
     `<span>Ложных <b>${p.decoys}</b></span>` +
     `<span>Оценка <span class="stars" aria-label="${p.stars} из 5">${'■'.repeat(p.stars)}${'□'.repeat(5 - p.stars)}</span></span>` +
-    `<span>Проверка <b>${ok ? 'решаемо' : 'ошибка'}</b></span>`;
+    `<span>Проверка <b>решаемо</b></span>`;
 
   const items = p.folds.map((f, i) => {
     const nb = bbox(p.states[i + 1]!);
@@ -285,9 +296,13 @@ async function generateBatch(
           reject(e);
         }
       };
-      worker.onmessage = (e: MessageEvent<WorkerReply>) => {
-        if (e.data.id !== seed) return;
-        const p = e.data.puzzle;
+      worker.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
+        if (data.id !== seed) return;
+        if ('error' in data) {
+          reject(new Error(data.error));
+          return;
+        }
+        const p = data.puzzle;
         if (p) puzzles.push(p);
         else skipped++;
         if (puzzles.length === count) {
