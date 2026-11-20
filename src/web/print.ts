@@ -124,7 +124,7 @@ export function puzzlePdf(p: Puzzle, sheet: string, o: PrintOptions, label: Labe
   const [W, H] = PAPERS[o.paper];
   const { x, y } = sheetOrigin(o.paper, o.cell);
   const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
-  const doc = new PdfDoc(`Foldoku ${p.seed}`, o.flip);
+  const doc = new PdfDoc(`Foldoku ${p.seed}`, p.singleSided ? 'simplex' : o.flip);
   const head = `Foldoku · № ${p.seed} · ${LEVEL_NAME[p.level]}`;
 
   const front = doc.page(W, H);
@@ -133,11 +133,13 @@ export function puzzlePdf(p: Puzzle, sheet: string, o: PrintOptions, label: Labe
   put(front, label(`${head} · лицевая сторона`, 3.4, TEXT, true), x, y - BLEED - 14);
   put(front, label('Вырежьте квадрат по меткам на углах. Сложите его по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона чёрная, другая белая.', 2.8, TEXT), x, y + SIZE + BLEED + 6);
 
-  const back = doc.page(W, H);
-  back.save().transform(backMatrix(o));
-  drawSheet(back, p, 1, sheet, x, y, o.cell);
-  put(back, label(`${head} · оборот`, 3.4, TEXT, true), x, y - BLEED - 14);
-  back.restore();
+  if (!p.singleSided) {
+    const back = doc.page(W, H);
+    back.save().transform(backMatrix(o));
+    drawSheet(back, p, 1, sheet, x, y, o.cell);
+    put(back, label(`${head} · оборот`, 3.4, TEXT, true), x, y - BLEED - 14);
+    back.restore();
+  }
 
   if (o.solution) answerPage(doc.page(W, H), p, sheet, label);
   return doc;
@@ -152,7 +154,7 @@ function answerPage(pg: PdfPage, p: Puzzle, sheet: string, label: Labeler): void
   const cards: ((x: number, y: number) => number)[] = p.folds.map((f, i) => (cx, cy) => {
     const nb = bbox(p.states[i + 1]!);
     let h = put(pg, label(`Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}`, 2.6, colW, true), cx, cy) + 1.5;
-    const sc = stepScene(p.states[i]!, p.faces, f, sheet, 'top', cs, 0.3, 0.6);
+    const sc = stepScene(p.states[i]!, p.faces, f, sheet, 'top', cs, 0.3, 0.6, p.singleSided);
     drawScene(pg, sc, cx, cy + h, false, BACKDROP);
     const text = label(describe(f), 2.9, colW - diag - 3);
     put(pg, text, cx + diag + 3, cy + h);
@@ -165,7 +167,7 @@ function answerPage(pg: PdfPage, p: Puzzle, sheet: string, label: Labeler): void
     const up = p.topColor === 'B' ? 'чёрная' : 'белая', down = p.topColor === 'B' ? 'белая' : 'чёрная';
     let sh = 0;
     for (const [i, [view, cap]] of ([['top', `Сверху: ${up}`], ['bottom', `Снизу: ${down}`]] as const).entries()) {
-      const sc = stepScene(last, p.faces, null, sheet, view, 4, 0.4, 0.6);
+      const sc = stepScene(last, p.faces, null, sheet, view, 4, 0.4, 0.6, p.singleSided);
       const cx2 = cx + i * (sc.w + 10);
       drawScene(pg, sc, cx2, cy + h, false, BACKDROP);
       sh = Math.max(sh, sc.h + 1 + put(pg, label(cap, 2.6, sc.w + 8), cx2, cy + h + sc.h + 1));

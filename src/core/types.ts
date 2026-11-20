@@ -94,6 +94,8 @@ export interface Puzzle {
   decoy: number;
   diag: number;
   tech: Tech;
+  /** True when all ink is on the front of the unfolded sheet. */
+  singleSided?: boolean;
   folds: Move[];
   /** State before each move, then the final state: folds.length + 1 entries. */
   states: State[];

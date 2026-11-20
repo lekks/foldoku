@@ -14,9 +14,11 @@ npm install
 npm run build        # → dist/index.html, one self-contained page
 ```
 
-Open `dist/index.html` in a browser to generate sheets. The «Печать» block downloads a
-two-sided PDF (cell size 12–22 mm) and a calibration sheet that measures the printer's
-duplex offset; see [docs/printing.md](docs/printing.md).
+Open `dist/index.html` in a browser to generate sheets. Choose «Односторонняя» under
+«Печать задания» to print on one side of white paper. The folded square still has a
+solid black side and a solid white side. The «Печать» block downloads a PDF (cell
+size 12–22 mm) with an optional answer page. In duplex mode it also offers a
+calibration sheet for measuring the printer's offset. See [docs/printing.md](docs/printing.md).
 
 To include an analytics snippet in the hosted page, set the optional `ANALYTICS_HTML`
 environment variable at build time. GitHub Pages builds read it from the repository

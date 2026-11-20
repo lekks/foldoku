@@ -56,7 +56,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, .sw:focus-visib
 
 .board.busy { opacity: .45; transition: opacity .2s; }
 .board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-@media (max-width: 720px) { .board { grid-template-columns: 1fr; } }
+.board.single-sided > figure:first-child { grid-column: 1 / -1; justify-self: center; width: calc((100% - 24px) / 2); }
+@media (max-width: 720px) {
+  .board { grid-template-columns: 1fr; }
+  .board.single-sided > figure:first-child { width: 100%; }
+}
 figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
 figcaption { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
 figcaption b { color: var(--ink); font-weight: 600; }

@@ -58,3 +58,12 @@ test('puzzle PDF: front, back and answers', async () => {
 test('calibration PDF: two pages', async () => {
   assertWellFormed(await calibrationPdf({ ...options, flip: 'short' }, stub).bytes(), 2);
 });
+
+test('single-sided puzzle PDF: front and optional answers with simplex printing', async () => {
+  const p = generate(101, 'mid', 0.15, 1, 0, true);
+  assert.ok(p);
+  const withSolution = await puzzlePdf(p, '#d9d23a', options, stub).bytes();
+  assertWellFormed(withSolution, 2);
+  assert.match(new TextDecoder().decode(withSolution), /\/Duplex \/Simplex\b/);
+  assertWellFormed(await puzzlePdf(p, '#d9d23a', { ...options, solution: false }, stub).bytes(), 1);
+});

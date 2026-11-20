@@ -28,7 +28,7 @@ function load(k: string): string | null { try { return localStorage.getItem(k); 
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
 
-interface Settings { seed: number; level: Level; diag: number; tech: Tech; decoy: number }
+interface Settings { seed: number; level: Level; diag: number; tech: Tech; decoy: number; singleSided: boolean }
 
 function settings(): Settings {
   return {
@@ -36,6 +36,7 @@ function settings(): Settings {
     level: select('level').value as Level,
     diag: parseInt(select('diag').value, 10) || 0,
     tech: (parseInt(select('tech').value, 10) || 0) as Tech,
+    singleSided: select('sides').value === 'single',
     decoy: parseInt(input('decoy').value, 10) / 100,
   };
 }
@@ -54,9 +55,19 @@ function request(): void {
   const st = settings();
   $('decoyVal').textContent = Math.round(st.decoy * 100) + '%';
   gen.id++;
-  const args: GenerateArgs = [st.seed, st.level, st.decoy, st.diag, st.tech];
+  const args: GenerateArgs = [st.seed, st.level, st.decoy, st.diag, st.tech, st.singleSided];
   gen.args = args;
   $('board').classList.add('busy');
+  $('board').classList.toggle('single-sided', st.singleSided);
+  ui.puzzle = null;
+  $<HTMLButtonElement>('pdf').disabled = true;
+  $<HTMLButtonElement>('copy').disabled = true;
+  $('printMsg').textContent = '';
+  $('steps').hidden = true;
+  $('solBox').hidden = false;
+  $('backPreview').hidden = st.singleSided;
+  $('singlePrintHelp').hidden = !st.singleSided;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-duplex]')) el.hidden = st.singleSided;
   $('meta').textContent = 'Складываю лист…';
   try {
     // A newer request makes the running one pointless: drop it rather than queue behind it.
@@ -74,7 +85,15 @@ function request(): void {
 
 function done(p: Puzzle | null): void {
   $('board').classList.remove('busy');
-  if (!p) { $('meta').textContent = 'Не удалось подобрать сгибы для этих настроек. Попробуйте другой номер или меньше диагоналей.'; return; }
+  if (!p) {
+    $('front').replaceChildren();
+    $('back').replaceChildren();
+    $('capNo').textContent = '';
+    $('meta').textContent = 'Не удалось подобрать сгибы для этих настроек. Попробуйте другой номер или меньше диагоналей.';
+    return;
+  }
+  $<HTMLButtonElement>('pdf').disabled = false;
+  $<HTMLButtonElement>('copy').disabled = false;
   ui.puzzle = p;
   show();
 }
@@ -90,7 +109,7 @@ function show(): void {
   for (const b of $('swatches').children) b.setAttribute('aria-pressed', String((b as HTMLElement).dataset['c'] === color));
 
   $('front').innerHTML = sheetSvg(p.faces, 0, color, numberCell(p), `${seed}.`);
-  $('back').innerHTML = sheetSvg(p.faces, 1, color);
+  $('back').innerHTML = p.singleSided ? '' : sheetSvg(p.faces, 1, color);
   $('capNo').textContent = `№ ${seed}`;
 
   // Measured in cells; a triangle is half a cell, a lone quarter is a quarter.
@@ -107,18 +126,18 @@ function show(): void {
 
   const items = p.folds.map((f, i) => {
     const nb = bbox(p.states[i + 1]!);
-    return `<li><span class="n">Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}</span>${stepSvg(p.states[i]!, p.faces, f, color)}<p>${describe(f)}</p></li>`;
+    return `<li><span class="n">Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}</span>${stepSvg(p.states[i]!, p.faces, f, color, 'top', p.singleSided)}<p>${describe(f)}</p></li>`;
   });
   const last = p.states[p.states.length - 1]!;
   items.push(`<li class="final"><span class="n">Готово · 4×4</span><div class="final-pair">` +
-    `<div>${stepSvg(last, p.faces, null, color, 'top')}Сверху: ${p.topColor === 'B' ? 'чёрная' : 'белая'}</div>` +
-    `<div>${stepSvg(last, p.faces, null, color, 'bottom')}Снизу: ${p.topColor === 'B' ? 'белая' : 'чёрная'}</div></div></li>`);
+    `<div>${stepSvg(last, p.faces, null, color, 'top', p.singleSided)}Сверху: ${p.topColor === 'B' ? 'чёрная' : 'белая'}</div>` +
+    `<div>${stepSvg(last, p.faces, null, color, 'bottom', p.singleSided)}Снизу: ${p.topColor === 'B' ? 'белая' : 'чёрная'}</div></div></li>`);
   $('steps').innerHTML = items.join('');
   $('steps').hidden = !ui.showSol;
   $('solBox').hidden = ui.showSol;
   $('toast').textContent = '';
   const st = settings();
-  store(STORAGE_KEY, JSON.stringify({ seed: st.seed, level: st.level, diag: st.diag, tech: st.tech, decoy: input('decoy').value, color: ui.color }));
+  store(STORAGE_KEY, JSON.stringify({ seed: st.seed, level: st.level, diag: st.diag, tech: st.tech, singleSided: st.singleSided, decoy: input('decoy').value, color: ui.color }));
 }
 
 /** The current puzzle as JSON: each cell is four letters for its quarters n, e, s, w (B black, W white, N sheet colour). */
@@ -127,6 +146,7 @@ function exportJson(p: Puzzle): string {
     p.faces.slice(y * N, y * N + N).map(f => f[side].n + f[side].e + f[side].s + f[side].w).join(' '));
   return JSON.stringify({
     number: p.seed, level: p.level, diagonals: p.diag, techniques: p.tech, top: p.topColor,
+    ...(p.singleSided ? { singleSided: true } : {}),
     front: rows(0),
     back: rows(1),
     folds: p.folds.map(f => ({
@@ -167,7 +187,7 @@ async function save(name: string, blob: Blob): Promise<void> {
 }
 
 /** Builds a PDF and hands it to the viewer as a file to save. */
-async function download(name: string, make: (o: PrintOptions) => { bytes(): Promise<Uint8Array> }): Promise<void> {
+async function download(name: string, make: (o: PrintOptions) => { bytes(): Promise<Uint8Array> }, singleSided = false): Promise<void> {
   const o = printOptions();
   store(PRINT_KEY, JSON.stringify(o));
   $('printMsg').textContent = 'Готовлю PDF…';
@@ -176,7 +196,7 @@ async function download(name: string, make: (o: PrintOptions) => { bytes(): Prom
     await document.fonts.ready;
     const bytes = await make(o).bytes();
     await save(name, new Blob([bytes as BlobPart], { type: 'application/pdf' }));
-    $('printMsg').textContent = `Готово: ${name}. Печатайте в масштабе 100 % с двух сторон.`;
+    $('printMsg').textContent = `Готово: ${name}. Печатайте в масштабе 100 % ${singleSided ? 'с одной стороны' : 'с двух сторон'}.`;
   } catch (e) {
     const code = (e as { code?: string } | null)?.code;
     $('printMsg').textContent = code === 'declined' ? 'Сохранение отменено.'
@@ -199,7 +219,7 @@ function initPrint(): void {
   for (const id of ['paper', 'cell', 'flip', 'dx', 'dy', 'withSol']) $(id).addEventListener('change', () => store(PRINT_KEY, JSON.stringify(printOptions())));
   $('pdf').onclick = () => {
     const p = ui.puzzle;
-    if (p) void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, sheetColor(p), o, canvasLabeler));
+    if (p) void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, sheetColor(p), o, canvasLabeler), p.singleSided);
   };
   $('calib').onclick = () => void download('foldoku-calibration.pdf', o => calibrationPdf(o, canvasLabeler));
 }
@@ -213,13 +233,14 @@ function init(): void {
     $('swatches').appendChild(b);
   }
   try {
-    const saved = JSON.parse(load(STORAGE_KEY) ?? 'null') as Partial<Settings & { decoy: string; color: string | null }> | null;
+    const saved = JSON.parse(load(STORAGE_KEY) ?? 'null') as Partial<Omit<Settings, 'decoy'> & { decoy: string; color: string | null }> | null;
     if (saved) {
       input('seed').value = String(saved.seed ?? 101);
       select('level').value = saved.level ?? 'mid';
       input('decoy').value = String(saved.decoy ?? 15);
       select('diag').value = String(saved.diag ?? 1);
       select('tech').value = String(saved.tech ?? 1);
+      select('sides').value = saved.singleSided ? 'single' : 'double';
       ui.color = saved.color ?? null;
     }
   } catch { /* ignore a broken saved state */ }
@@ -229,6 +250,7 @@ function init(): void {
   input('seed').addEventListener('input', request);
   select('level').addEventListener('change', request);
   input('decoy').addEventListener('input', request);
+  select('sides').addEventListener('change', request);
   select('diag').addEventListener('change', request);
   select('tech').addEventListener('change', request);
   $('next').onclick = () => { input('seed').value = String(Math.min(999999, (parseInt(input('seed').value, 10) || 0) + 1)); request(); };

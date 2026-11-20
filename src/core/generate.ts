@@ -68,8 +68,16 @@ interface Attempt {
   m: State;
 }
 
+/** The outer faces of the folded square all come from the front of the flat sheet. */
+function usesOnlyFront(m: State): boolean {
+  for (const { stack } of m.values()) {
+    if (stack[stack.length - 1]!.up !== 0 || stack[0]!.up !== 1) return false;
+  }
+  return true;
+}
+
 /** One random walk from the flat sheet; succeeds only if it ends exactly as the T×T square with all quotas met. */
-function tryFolds(R: Rng, lo: number, hi: number, diag: number, tech: Tech): Attempt | null {
+function tryFolds(R: Rng, lo: number, hi: number, diag: number, tech: Tech, singleSided: boolean): Attempt | null {
   let m = initState();
   const folds: Move[] = [], states: State[] = [m];
   for (let step = 0; step < hi; step++) {
@@ -94,7 +102,7 @@ function tryFolds(R: Rng, lo: number, hi: number, diag: number, tech: Tech): Att
     if (isSquare(m)) {
       const okDiag = folds.filter(isDiag).length === diag;
       const okTech = (tech < 1 || folds.some(g => g.kind === 'flap' || g.kind === 'tuck')) && (tech < 2 || folds.some(g => g.kind === 'tuck'));
-      return folds.length >= lo && okDiag && okTech ? { folds, states, m } : null;
+      return folds.length >= lo && okDiag && okTech && (!singleSided || usesOnlyFront(m)) ? { folds, states, m } : null;
     }
   }
   return null;
@@ -103,7 +111,7 @@ function tryFolds(R: Rng, lo: number, hi: number, diag: number, tech: Tech): Att
 const HALVES: readonly (readonly Quarter[])[] = [['n', 'e'], ['e', 's'], ['s', 'w'], ['w', 'n']];
 
 /** A solvable sheet for these settings, or null if the search gave up. Deterministic for equal inputs. */
-export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag = 0, tech: Tech = 0): Puzzle | null {
+export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag = 0, tech: Tech = 0, singleSided = false): Puzzle | null {
   const R = rng(seed * 7919 + 17 + diag * 104729 + tech * 1299709);
   let [lo, hi] = LEVELS[level];
   // A diagonal fold always needs grid folds around it, and a tuck barely shrinks the sheet,
@@ -113,7 +121,7 @@ export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag 
   let res: Attempt | null = null;
   // Exact fold counts are rare for some mixes, so the range widens until something fits.
   for (let relax = 0; !res && relax < 6; relax++) {
-    for (let attempt = 0; !res && attempt < 3000; attempt++) res = tryFolds(R, Math.max(2, lo - relax), hi + relax, diag, tech);
+    for (let attempt = 0; !res && attempt < 3000; attempt++) res = tryFolds(R, Math.max(2, lo - relax), hi + relax, diag, tech, singleSided);
   }
   if (!res) return null;
   const { folds, states, m } = res;
@@ -128,7 +136,7 @@ export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag 
   }
   // Decoys: whole hidden faces, and with diagonals on, sometimes just a triangular half.
   let decoys = 0;
-  for (const cell of faces) for (const face of cell) {
+  for (const cell of faces) for (const face of singleSided ? [cell[0]] : cell) {
     if (!Object.values(face).every(v => v === 'N')) continue;
     if (R() < decoy) {
       const col = R() < 0.5 ? 'B' : 'W';
@@ -144,7 +152,7 @@ export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag 
   const score = folds.length + folds.filter(f => f.dir === 'under').length * 0.6 + switches * 0.4
     + folds.filter(isDiag).length * 1.2 + count('flap') * 1 + count('tuck') * 1.8 + decoy * 6;
   const stars = Math.max(1, Math.min(5, Math.round((score - 1.5) / 2)));
-  return { seed, level, decoy, diag, tech, folds, states, faces, topColor, decoys, stars };
+  return { seed, level, decoy, diag, tech, ...(singleSided ? { singleSided } : {}), folds, states, faces, topColor, decoys, stars };
 }
 
 /** Replays the moves, confirms every state is a real flat fold and both outer faces of the square are solid. */
@@ -155,6 +163,7 @@ export function verify(p: Puzzle): boolean {
     if (!isValid(m)) return false;
   }
   if (!isSquare(m)) return false;
+  if (p.singleSided && (!usesOnlyFront(m) || p.faces.some(cell => QS.some(q => cell[1][q] !== 'N')))) return false;
   const bot = p.topColor === 'B' ? 'W' : 'B';
   for (const s of m.values()) {
     const t = s.stack[s.stack.length - 1]!, b = s.stack[0]!;

@@ -104,9 +104,9 @@ export class PdfDoc {
 
   /** `flip` is a duplex hint for viewers that pass it on to the print dialog. */
   readonly title: string;
-  readonly flip: 'long' | 'short';
+  readonly flip: 'long' | 'short' | 'simplex';
 
-  constructor(title = '', flip: 'long' | 'short' = 'long') {
+  constructor(title = '', flip: 'long' | 'short' | 'simplex' = 'long') {
     this.title = title;
     this.flip = flip;
   }
@@ -152,7 +152,7 @@ export class PdfDoc {
         `/Resources << /Font << /F1 ${font} 0 R >> /XObject << ${xobjs.join(' ')} >> /ExtGState << ${gs} >> >> >>`);
     }
     set(pagesObj, `<< /Type /Pages /Kids [${kids.map(k => `${k} 0 R`).join(' ')}] /Count ${kids.length} >>`);
-    const duplex = this.flip === 'long' ? 'DuplexFlipLongEdge' : 'DuplexFlipShortEdge';
+    const duplex = { long: 'DuplexFlipLongEdge', short: 'DuplexFlipShortEdge', simplex: 'Simplex' }[this.flip];
     set(catalog, `<< /Type /Catalog /Pages ${pagesObj} 0 R /ViewerPreferences << /PrintScaling /None /Duplex /${duplex} >> >>`);
 
     const parts: Uint8Array[] = [enc.encode('%PDF-1.7\n%\xe2\xe3\xcf\xd3\n')];

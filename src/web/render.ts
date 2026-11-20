@@ -89,7 +89,7 @@ export function foldEnds(f: Move, b: Box): [number, number, number, number] {
  * A folded state seen from above (or below, mirrored), with the move about to happen: its moving part faded
  * and its line drawn as a valley (over) or mountain (under) line.
  */
-export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top', cs = 18, gap = 2, pad = 6): Scene {
+export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top', cs = 18, gap = 2, pad = 6, singleSided = false): Scene {
   const b = bbox(m);
   const sc: Scene = { w: b.w * (cs + gap) - gap + pad * 2, h: b.h * (cs + gap) - gap + pad * 2, cs, polys: [], cells: [], fold: null, number: null };
   const ux = (u: number) => pad - gap / 2 + (u - b.x0) * (cs + gap), uy = (u: number) => pad - gap / 2 + (u - b.y0) * (cs + gap);
@@ -97,10 +97,11 @@ export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null,
     const d = decode(p.X, p.Y);
     let q = d.q;
     const e = view === 'top' ? p.stack[p.stack.length - 1]! : p.stack[0]!;
-    const c = view === 'top' ? faces[e.id]![e.up][e.q] : faces[e.id]![e.up === 0 ? 1 : 0][e.q];
+    const side = view === 'top' ? e.up : e.up === 0 ? 1 : 0;
     let px = d.cx - b.x0;
     if (view !== 'top') { px = b.w - 1 - px; q = MIRQ[q]; }
-    sc.polys.push(quarterPoly(pad + px * (cs + gap), pad + (d.cy - b.y0) * (cs + gap), cs, q, inkOf(c, q, sheet), !!f && movesAt(f, p)));
+    const fill = singleSided && side === 1 ? '#ffffff' : inkOf(faces[e.id]![side][e.q], q, sheet);
+    sc.polys.push(quarterPoly(pad + px * (cs + gap), pad + (d.cy - b.y0) * (cs + gap), cs, q, fill, !!f && movesAt(f, p)));
   }
   if (f) {
     const [x1, y1, x2, y2] = foldEnds(f, b);
@@ -138,6 +139,6 @@ export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, sheet: string
   return toSvg(sheetScene(faces, side, sheet, 100, 10, 16, numberAt, number), side ? 'Оборот листа' : 'Лицевая сторона листа');
 }
 
-export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top'): string {
-  return toSvg(stepScene(m, faces, f, sheet, view));
+export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top', singleSided = false): string {
+  return toSvg(stepScene(m, faces, f, sheet, view, undefined, undefined, undefined, singleSided));
 }
