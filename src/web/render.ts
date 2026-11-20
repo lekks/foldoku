@@ -2,16 +2,22 @@
 // written out as SVG for the page or as PDF for printing. Pure: no DOM, so it also runs in Node.
 
 import { bbox, decode, movesAt, N } from '../core/index.ts';
-import type { Box, CellPaint, Direction, Move, Paint, Puzzle, Quarter, Solid, State } from '../core/index.ts';
+import type { Box, CellPaint, Direction, Move, Paint, Puzzle, Quarter, State } from '../core/index.ts';
 
-export const PAPER: Readonly<Record<Solid, string>> = { B: '#1d1b1f', W: '#fbfbf8' };
+export interface Appearance {
+  sheet: string;
+  dark: string;
+  light: string;
+  texture: 'flat' | 'bands' | 'checker' | 'relief';
+}
+
+export const DEFAULT_INK: Readonly<Omit<Appearance, 'sheet'>> = { dark: '#606060', light: '#ffffff', texture: 'flat' };
 /** Corners of each quarter inside a unit cell (the third corner is the cell centre). */
 const QUAD: Readonly<Record<Quarter, readonly [readonly [number, number], readonly [number, number]]>> = {
   n: [[0, 0], [1, 0]], e: [[1, 0], [1, 1]], s: [[1, 1], [0, 1]], w: [[0, 1], [0, 0]],
 };
 const QUARTERS = Object.keys(QUAD) as Quarter[];
-/** The pyramid relief printed on neutral cells: each quarter catches light differently. */
-const SHADE: Readonly<Record<Quarter, readonly [string, number]>> = {
+const RELIEF: Readonly<Record<Quarter, readonly [string, number]>> = {
   n: ['#ffffff', 0.28], e: ['#000000', 0.06], s: ['#000000', 0.16], w: ['#ffffff', 0.1],
 };
 /** Looking at the other side swaps east and west. */
@@ -24,16 +30,20 @@ export function mix(hex: string, to: string, t: number): string {
   return '#' + [16, 8, 0].map(sh => ch(sh).toString(16).padStart(2, '0')).join('');
 }
 
-/** Ink of one quarter: black, white, or the sheet colour with the pyramid shading. */
-export const inkOf = (color: Paint, q: Quarter, sheet: string): string => (color === 'N' ? mix(sheet, SHADE[q][0], SHADE[q][1]) : PAPER[color]);
+function inkOf(color: Paint, appearance: Appearance, id: number, q: Quarter): string {
+  if (color === 'B') return appearance.dark;
+  if (color === 'W') return appearance.light;
+  if (appearance.texture === 'relief') return mix(appearance.sheet, ...RELIEF[q]);
+  const row = Math.floor(id / N), col = id % N;
+  const shaded = (appearance.texture === 'bands' && row % 2 === 1)
+    || (appearance.texture === 'checker' && (row + col) % 2 === 1);
+  return shaded ? mix(appearance.sheet, '#000000', 0.08) : appearance.sheet;
+}
 
-/**
- * Paint of the quarter shown at column x, row y of one printed side. The back is seen after turning the
- * sheet like a page, so its columns read right to left and its east and west swap.
- */
-export function paintAt(faces: readonly CellPaint[], side: 0 | 1, x: number, y: number, q: Quarter): Paint {
-  const id = side === 0 ? y * N + x : y * N + (N - 1 - x);
-  return faces[id]![side][side ? MIRQ[q] : q];
+/** The back is seen like a turned page: its columns and east and west quarters are mirrored. */
+export function sheetInk(faces: readonly CellPaint[], side: 0 | 1, x: number, y: number, q: Quarter, appearance: Appearance): string {
+  const id = y * N + (side === 0 ? x : N - 1 - x);
+  return inkOf(faces[id]![side][side === 0 ? q : MIRQ[q]], appearance, id, q);
 }
 
 /** The front cell that carries the sheet's number: a fully neutral one, as on the real sheets. */
@@ -61,12 +71,12 @@ function quarterPoly(x0: number, y0: number, cs: number, q: Quarter, fill: strin
 }
 
 /** One printed side of the sheet; `gap` separates cells on screen and is 0 for print. */
-export function sheetScene(faces: readonly CellPaint[], side: 0 | 1, sheet: string, cs: number, gap: number, pad: number, numberAt = -1, number = ''): Scene {
+export function sheetScene(faces: readonly CellPaint[], side: 0 | 1, appearance: Appearance, cs: number, gap: number, pad: number, numberAt = -1, number = ''): Scene {
   const W = N * (cs + gap) - gap + pad * 2;
   const sc: Scene = { w: W, h: W, cs, polys: [], cells: [], fold: null, number: null };
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const x0 = pad + x * (cs + gap), y0 = pad + y * (cs + gap);
-    for (const q of QUARTERS) sc.polys.push(quarterPoly(x0, y0, cs, q, inkOf(paintAt(faces, side, x, y, q), q, sheet)));
+    for (const q of QUARTERS) sc.polys.push(quarterPoly(x0, y0, cs, q, sheetInk(faces, side, x, y, q, appearance)));
     sc.cells.push({ x: x0, y: y0 });
     if (side === 0 && y * N + x === numberAt) sc.number = { x: x0 + cs / 2, y: y0 + cs / 2, text: number };
   }
@@ -89,7 +99,7 @@ export function foldEnds(f: Move, b: Box): [number, number, number, number] {
  * A folded state seen from above (or below, mirrored), with the move about to happen: its moving part faded
  * and its line drawn as a valley (over) or mountain (under) line.
  */
-export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top', cs = 18, gap = 2, pad = 6, singleSided = false): Scene {
+export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null, appearance: Appearance, view: 'top' | 'bottom' = 'top', cs = 18, gap = 2, pad = 6, singleSided = false): Scene {
   const b = bbox(m);
   const sc: Scene = { w: b.w * (cs + gap) - gap + pad * 2, h: b.h * (cs + gap) - gap + pad * 2, cs, polys: [], cells: [], fold: null, number: null };
   const ux = (u: number) => pad - gap / 2 + (u - b.x0) * (cs + gap), uy = (u: number) => pad - gap / 2 + (u - b.y0) * (cs + gap);
@@ -100,7 +110,7 @@ export function stepScene(m: State, faces: readonly CellPaint[], f: Move | null,
     const side = view === 'top' ? e.up : e.up === 0 ? 1 : 0;
     let px = d.cx - b.x0;
     if (view !== 'top') { px = b.w - 1 - px; q = MIRQ[q]; }
-    const fill = singleSided && side === 1 ? '#ffffff' : inkOf(faces[e.id]![side][e.q], q, sheet);
+    const fill = singleSided && side === 1 ? '#ffffff' : inkOf(faces[e.id]![side][e.q], appearance, e.id, q);
     sc.polys.push(quarterPoly(pad + px * (cs + gap), pad + (d.cy - b.y0) * (cs + gap), cs, q, fill, !!f && movesAt(f, p)));
   }
   if (f) {
@@ -135,10 +145,10 @@ export function toSvg(sc: Scene, label = ''): string {
   return s + '</svg>';
 }
 
-export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, sheet: string, numberAt = -1, number = ''): string {
-  return toSvg(sheetScene(faces, side, sheet, 100, 10, 16, numberAt, number), side ? 'Оборот листа' : 'Лицевая сторона листа');
+export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, appearance: Appearance, numberAt = -1, number = ''): string {
+  return toSvg(sheetScene(faces, side, appearance, 100, 10, 16, numberAt, number), side ? 'Оборот листа' : 'Лицевая сторона листа');
 }
 
-export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, sheet: string, view: 'top' | 'bottom' = 'top', singleSided = false): string {
-  return toSvg(stepScene(m, faces, f, sheet, view, undefined, undefined, undefined, singleSided));
+export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, appearance: Appearance, view: 'top' | 'bottom' = 'top', singleSided = false): string {
+  return toSvg(stepScene(m, faces, f, appearance, view, undefined, undefined, undefined, singleSided));
 }

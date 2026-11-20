@@ -2,7 +2,7 @@
   <header>
     <div>
       <h1>Fold<span>oku</span></h1>
-      <p class="lede">Генератор складных головоломок. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона полностью чёрная, другая полностью белая. Каждое задание получено честным складыванием, поэтому решение есть всегда.</p>
+      <p class="lede">Генератор складных головоломок. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4 с однотонной тёмной и светлой сторонами.</p>
     </div>
   </header>
 
@@ -22,8 +22,8 @@
     <div class="field">
       <label for="sides">Печать задания</label>
       <select id="sides">
-        <option value="double" selected>Двусторонняя</option>
-        <option value="single">Односторонняя</option>
+        <option value="double">Двусторонняя</option>
+        <option value="single" selected>Односторонняя</option>
       </select>
     </div>
     <div class="field">
@@ -47,13 +47,32 @@
       <label for="decoy">Ложные клетки <span class="val" id="decoyVal">15%</span></label>
       <input id="decoy" type="range" min="0" max="50" step="5" value="15">
     </div>
-    <div class="field">
-      <span class="lab" id="colorLab">Цвет листа</span>
-      <div class="swatches" id="swatches" role="group" aria-labelledby="colorLab"></div>
-    </div>
     <div class="spacer"></div>
     <button id="prev" class="ghost" type="button" aria-label="Предыдущее задание">←</button>
     <button id="next" type="button">Новое задание</button>
+  </section>
+  <section class="controls" aria-label="Оформление задания">
+    <div class="field">
+      <span class="lab" id="colorLab">Цвет нейтральных клеток</span>
+      <div class="swatches" id="swatches" role="group" aria-labelledby="colorLab"></div>
+    </div>
+    <div class="field">
+      <label for="darkInk">Тёмный оттенок</label>
+      <input id="darkInk" type="color" value="#606060">
+    </div>
+    <div class="field">
+      <label for="lightInk">Светлый оттенок</label>
+      <input id="lightInk" type="color" value="#ffffff">
+    </div>
+    <div class="field">
+      <label for="texture">Фон нейтральных клеток</label>
+      <select id="texture">
+        <option value="flat">Однотонный</option>
+        <option value="bands">Полосы по рядам</option>
+        <option value="checker">Шахматный</option>
+        <option value="relief">Рельеф</option>
+      </select>
+    </div>
   </section>
 
   <section class="board" id="board" aria-label="Лист" aria-live="polite">
@@ -68,6 +87,22 @@
   </section>
 
   <div class="meta" id="meta"></div>
+
+  <section class="steps-section" style="display:grid;gap:14px">
+    <div class="steps-head">
+      <h2>Решение</h2>
+      <div class="legend">
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/></svg>долина: перегнуть поверх</span>
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3"/></svg>гора: подогнуть под низ</span>
+        <button id="toggleSol" class="ghost" type="button" aria-expanded="false">Показать решение</button>
+        <button id="copy" class="ghost" type="button">Копировать JSON</button>
+      </div>
+    </div>
+    <div id="solBox" class="hidden-sol">Решение скрыто, чтобы не подсматривать. На схемах видна верхняя сторона стопки; бледным показана часть, которую сгибаем.</div>
+    <ol class="steps" id="steps" hidden></ol>
+    <p class="toast" id="toast" role="status"></p>
+    <p class="note">Целый сгиб переворачивает всю стопку по одну сторону линии. Сгиб части слоёв поднимает только верхний (или нижний) клапан, который держится за остальное лишь по линии сгиба. При задвигании клапан не ложится сверху, а уходит в карман между слоями. Каждый шаг проверяется как настоящее плоское складывание: сгибы на одном ребре не пересекаются, и бумага нигде не проходит сквозь бумагу. Ложные клетки — это тёмные и светлые грани, которые в итоге оказываются спрятаны внутри квадрата.</p>
+  </section>
 
   <section class="print-section" aria-labelledby="printTitle">
     <h2 id="printTitle">Печать</h2>
@@ -136,20 +171,35 @@
     </details>
   </section>
 
-  <section class="steps-section" style="display:grid;gap:14px">
-    <div class="steps-head">
-      <h2>Решение</h2>
-      <div class="legend">
-        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/></svg>долина: перегнуть поверх</span>
-        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3"/></svg>гора: подогнуть под низ</span>
-        <button id="toggleSol" class="ghost" type="button" aria-expanded="false">Показать решение</button>
-        <button id="copy" class="ghost" type="button">Копировать JSON</button>
+  <section class="print-section" aria-labelledby="batchTitle">
+    <h2 id="batchTitle">Пакетная печать (односторонняя)</h2>
+    <div class="controls" role="group" aria-labelledby="batchTitle">
+      <div class="field">
+        <label for="batchCount">Количество заданий</label>
+        <input id="batchCount" type="number" min="1" max="50" value="6">
       </div>
+      <div class="field">
+        <label for="batchCell">Размер клетки в пакете</label>
+        <select id="batchCell">
+          <option value="8" selected>8 мм · квадрат 32 мм</option>
+          <option value="9">9 мм · квадрат 36 мм</option>
+          <option value="10">10 мм · квадрат 40 мм</option>
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <button id="batchCancel" class="ghost" type="button" hidden>Отменить</button>
+      <button id="batchPreviewButton" type="button">Предпросмотр пакета</button>
     </div>
-    <div id="solBox" class="hidden-sol">Решение скрыто, чтобы не подсматривать. На схемах видна верхняя сторона стопки; бледным показана часть, которую сгибаем.</div>
-    <ol class="steps" id="steps" hidden></ol>
-    <p class="toast" id="toast" role="status"></p>
-    <p class="note">Целый сгиб переворачивает всю стопку по одну сторону линии. Сгиб части слоёв поднимает только верхний (или нижний) клапан, который держится за остальное лишь по линии сгиба. При задвигании клапан не ложится сверху, а уходит в карман между слоями. Каждый шаг проверяется как настоящее плоское складывание: сгибы на одном ребре не пересекаются, и бумага нигде не проходит сквозь бумагу. Ложные клетки — это чёрные и белые грани, которые в итоге оказываются спрятаны внутри квадрата.</p>
+    <p class="note">Односторонние задания в два столбца, начиная с указанного номера. Если для номера не удалось подобрать сгибы, берётся следующий. Формат бумаги берётся из блока печати. Решения скачиваются отдельным PDF.</p>
+    <p class="toast" id="batchMsg" role="status" hidden></p>
+    <div class="batch-preview" id="batchPreview" hidden>
+      <div class="controls">
+        <button id="batchPdf" type="button">Скачать пакет PDF</button>
+        <button id="batchAnswers" class="ghost" type="button">Скачать решения PDF</button>
+        <a id="batchOpen" target="_blank" rel="noopener">Открыть PDF в новой вкладке</a>
+      </div>
+      <iframe id="batchFrame" title="Предпросмотр PDF с заданиями"></iframe>
+    </div>
   </section>
 
   <footer>

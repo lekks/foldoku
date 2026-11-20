@@ -32,7 +32,8 @@ Russian UI terms appear in parentheses so the document can be mapped onto the pa
 
 - A sheet is a square grid of **8×8 cells**. Both sides are printed.
 - Each printed cell (or a triangular part of it) is **black**, **white**, or **neutral**
-  (the sheet colour with a pyramid relief, "цвет листа").
+  (the sheet colour and optional pattern). Black and white are logical paint values
+  rendered using the selected dark and light shades.
 - The player may fold only along **grid lines** and along **cell diagonals**.
 - Goal: fold the sheet into a **4×4 square** whose top face is entirely one colour and
   whose bottom face is entirely the other (black on one side, white on the other).

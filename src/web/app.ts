@@ -3,9 +3,10 @@
 import { bbox, describe, generate, isDiagonal, N, verify } from '../core/index.ts';
 import type { Level, MoveKind, Puzzle, Tech } from '../core/index.ts';
 import { canvasLabeler } from './labels.ts';
-import { calibrationPdf, CELLS, DEFAULT_CELL, puzzlePdf } from './print.ts';
+import { batchAnswersPdf, batchPdf, BATCH_CELLS, calibrationPdf, CELLS, DEFAULT_CELL, puzzlePdf } from './print.ts';
 import type { Flip, PaperSize, PrintOptions } from './print.ts';
-import { numberCell, sheetSvg, stepSvg } from './render.ts';
+import { DEFAULT_INK, numberCell, sheetSvg, stepSvg } from './render.ts';
+import type { Appearance } from './render.ts';
 import type { GenerateArgs, WorkerReply, WorkerRequest } from './worker.ts';
 import workerSource from 'virtual:worker-source';
 
@@ -15,16 +16,45 @@ const COLORS: readonly (readonly [string, string])[] = [
 ];
 const STORAGE_KEY = 'foldoku';
 const PRINT_KEY = 'foldoku-print';
+const INK_KEY = 'foldoku-ink';
 
 const $ = <E extends HTMLElement = HTMLElement>(id: string): E => document.getElementById(id) as E;
 const input = (id: string) => $<HTMLInputElement>(id);
 const select = (id: string) => $<HTMLSelectElement>(id);
 
 const ui: { color: string | null; showSol: boolean; puzzle: Puzzle | null } = { color: null, showSol: false, puzzle: null };
-const sheetColor = (p: Puzzle) => ui.color ?? COLORS[(p.seed - 1) % COLORS.length]![1];
+const sheetColor = (p: Puzzle, color = ui.color) => color ?? COLORS[(p.seed - 1) % COLORS.length]![1];
 
 function store(k: string, v: string): void { try { localStorage.setItem(k, v); } catch { /* storage may be unavailable */ } }
 function load(k: string): string | null { try { return localStorage.getItem(k); } catch { return null; } }
+
+function textureSetting(value: unknown): Appearance['texture'] {
+  return value === 'bands' || value === 'checker' || value === 'relief' ? value : DEFAULT_INK.texture;
+}
+
+function inkSettings(): Omit<Appearance, 'sheet'> {
+  return {
+    dark: input('darkInk').value,
+    light: input('lightInk').value,
+    texture: textureSetting(select('texture').value),
+  };
+}
+
+function initInk(): void {
+  try {
+    const saved = JSON.parse(load(INK_KEY) ?? 'null') as Partial<Omit<Appearance, 'sheet'>> | null;
+    const { dark = '', light = '' } = saved ?? {};
+    input('darkInk').value = /^#[0-9a-f]{6}$/i.test(dark) ? dark : DEFAULT_INK.dark;
+    input('lightInk').value = /^#[0-9a-f]{6}$/i.test(light) ? light : DEFAULT_INK.light;
+    select('texture').value = textureSetting(saved?.texture);
+  } catch { /* ignore broken saved settings */ }
+  for (const id of ['darkInk', 'lightInk', 'texture']) {
+    $(id).addEventListener('input', () => {
+      store(INK_KEY, JSON.stringify(inkSettings()));
+      show();
+    });
+  }
+}
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
 
@@ -44,8 +74,17 @@ function settings(): Settings {
 // Generation runs in a worker, so the page stays responsive on slow mixes.
 const gen: { worker: Worker | null; busy: boolean; id: number; args: GenerateArgs | null } = { worker: null, busy: false, id: 0, args: null };
 
+function createWorker(): Worker {
+  const url = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
+  try {
+    return new Worker(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function startWorker(): Worker {
-  const w = new Worker(URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' })));
+  const w = createWorker();
   w.onmessage = (e: MessageEvent<WorkerReply>) => { gen.busy = false; if (e.data.id === gen.id) done(e.data.puzzle); };
   w.onerror = () => { gen.worker = null; gen.busy = false; if (gen.args) done(generate(...gen.args)); };
   return w;
@@ -105,11 +144,12 @@ function show(): void {
   if (!p) return;
   const seed = p.seed;
   const color = sheetColor(p);
+  const appearance = { ...inkSettings(), sheet: color };
   document.documentElement.style.setProperty('--sheet', color);
   for (const b of $('swatches').children) b.setAttribute('aria-pressed', String((b as HTMLElement).dataset['c'] === color));
 
-  $('front').innerHTML = sheetSvg(p.faces, 0, color, numberCell(p), `${seed}.`);
-  $('back').innerHTML = p.singleSided ? '' : sheetSvg(p.faces, 1, color);
+  $('front').innerHTML = sheetSvg(p.faces, 0, appearance, numberCell(p), `${seed}.`);
+  $('back').innerHTML = p.singleSided ? '' : sheetSvg(p.faces, 1, appearance);
   $('capNo').textContent = `№ ${seed}`;
 
   // Measured in cells; a triangle is half a cell, a lone quarter is a quarter.
@@ -119,19 +159,19 @@ function show(): void {
   $('meta').innerHTML =
     `<span>Сгибов <b>${p.folds.length}</b></span><span>Диагональных <b>${p.folds.filter(f => isDiagonal(f.t)).length}</b></span>` +
     `<span>Частью слоёв <b>${kinds('flap')}</b></span><span>Задвиганий <b>${kinds('tuck')}</b></span>` +
-    `<span>Чёрных клеток <b>${fmt(cnt('B'))}</b></span><span>Белых клеток <b>${fmt(cnt('W'))}</b></span>` +
+    `<span>Тёмных клеток <b>${fmt(cnt('B'))}</b></span><span>Светлых клеток <b>${fmt(cnt('W'))}</b></span>` +
     `<span>Ложных <b>${p.decoys}</b></span>` +
     `<span>Оценка <span class="stars" aria-label="${p.stars} из 5">${'■'.repeat(p.stars)}${'□'.repeat(5 - p.stars)}</span></span>` +
     `<span>Проверка <b>${ok ? 'решаемо' : 'ошибка'}</b></span>`;
 
   const items = p.folds.map((f, i) => {
     const nb = bbox(p.states[i + 1]!);
-    return `<li><span class="n">Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}</span>${stepSvg(p.states[i]!, p.faces, f, color, 'top', p.singleSided)}<p>${describe(f)}</p></li>`;
+    return `<li><span class="n">Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}</span>${stepSvg(p.states[i]!, p.faces, f, appearance, 'top', p.singleSided)}<p>${describe(f)}</p></li>`;
   });
   const last = p.states[p.states.length - 1]!;
   items.push(`<li class="final"><span class="n">Готово · 4×4</span><div class="final-pair">` +
-    `<div>${stepSvg(last, p.faces, null, color, 'top', p.singleSided)}Сверху: ${p.topColor === 'B' ? 'чёрная' : 'белая'}</div>` +
-    `<div>${stepSvg(last, p.faces, null, color, 'bottom', p.singleSided)}Снизу: ${p.topColor === 'B' ? 'белая' : 'чёрная'}</div></div></li>`);
+    `<div>${stepSvg(last, p.faces, null, appearance, 'top', p.singleSided)}Сверху: ${p.topColor === 'B' ? 'тёмная' : 'светлая'}</div>` +
+    `<div>${stepSvg(last, p.faces, null, appearance, 'bottom', p.singleSided)}Снизу: ${p.topColor === 'B' ? 'светлая' : 'тёмная'}</div></div></li>`);
   $('steps').innerHTML = items.join('');
   $('steps').hidden = !ui.showSol;
   $('solBox').hidden = ui.showSol;
@@ -186,21 +226,155 @@ async function save(name: string, blob: Blob): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+async function pdfBlob(doc: ReturnType<typeof puzzlePdf>): Promise<Blob> {
+  return new Blob([await doc.bytes() as BlobPart], { type: 'application/pdf' });
+}
+
+async function savePdf(name: string, blob: Blob, status: HTMLElement, singleSided: boolean): Promise<void> {
+  await save(name, blob);
+  status.textContent = `Готово: ${name}. Печатайте в масштабе 100 % ${singleSided ? 'с одной стороны' : 'с двух сторон'}.`;
+}
+
+function pdfError(e: unknown, action: string): string {
+  const error = e as { code?: string; name?: string; message?: string } | null;
+  if (error?.code === 'declined' || error?.name === 'AbortError') return 'Отменено.';
+  return `Не удалось ${action}: ${error?.message ?? String(e)}`;
+}
+
 /** Builds a PDF and hands it to the viewer as a file to save. */
-async function download(name: string, make: (o: PrintOptions) => { bytes(): Promise<Uint8Array> }, singleSided = false): Promise<void> {
+async function download(
+  name: string, make: (o: PrintOptions) => ReturnType<typeof puzzlePdf>,
+  singleSided = false,
+): Promise<void> {
   const o = printOptions();
+  const status = $('printMsg');
   store(PRINT_KEY, JSON.stringify(o));
-  $('printMsg').textContent = 'Готовлю PDF…';
+  status.textContent = 'Готовлю PDF…';
   try {
     // Labels are drawn with the page font, which may still be loading.
     await document.fonts.ready;
-    const bytes = await make(o).bytes();
-    await save(name, new Blob([bytes as BlobPart], { type: 'application/pdf' }));
-    $('printMsg').textContent = `Готово: ${name}. Печатайте в масштабе 100 % ${singleSided ? 'с одной стороны' : 'с двух сторон'}.`;
+    await savePdf(name, await pdfBlob(make(o)), status, singleSided);
   } catch (e) {
-    const code = (e as { code?: string } | null)?.code;
-    $('printMsg').textContent = code === 'declined' ? 'Сохранение отменено.'
-      : `Не удалось сохранить PDF: ${e instanceof Error ? e.message : (e as { message?: string } | null)?.message ?? String(e)}`;
+    status.textContent = pdfError(e, 'сохранить PDF');
+  }
+}
+
+async function generateBatch(
+  st: Settings, count: number, status: HTMLElement, signal: AbortSignal,
+): Promise<{ puzzles: Puzzle[]; skipped: number }> {
+  signal.throwIfAborted();
+  const worker = createWorker();
+  const puzzles: Puzzle[] = [];
+  let seed = st.seed;
+  let skipped = 0;
+  let cancel: (() => void) | undefined;
+  try {
+    return await new Promise<{ puzzles: Puzzle[]; skipped: number }>((resolve, reject) => {
+      cancel = () => reject(signal.reason);
+      signal.addEventListener('abort', cancel, { once: true });
+      const next = () => {
+        if (999999 - seed + 1 < count - puzzles.length) {
+          reject(new Error(`До номера 999999 недостаточно заданий для полного пакета. Собрано ${puzzles.length} из ${count}, пропущено ${skipped}.`));
+          return;
+        }
+        status.textContent = `Проверяю № ${seed} · собрано ${puzzles.length} из ${count} · пропущено ${skipped}`;
+        const msg: WorkerRequest = { id: seed, args: [seed, st.level, st.decoy, st.diag, st.tech, true] };
+        try {
+          worker.postMessage(msg);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      worker.onmessage = (e: MessageEvent<WorkerReply>) => {
+        if (e.data.id !== seed) return;
+        const p = e.data.puzzle;
+        if (p) puzzles.push(p);
+        else skipped++;
+        if (puzzles.length === count) {
+          resolve({ puzzles, skipped });
+        } else {
+          seed++;
+          next();
+        }
+      };
+      worker.onerror = () => reject(new Error(`Сбой генерации задания № ${seed}.`));
+      next();
+    });
+  } finally {
+    if (cancel) signal.removeEventListener('abort', cancel);
+    worker.terminate();
+  }
+}
+
+let batchUrl: string | null = null;
+
+async function previewBatch(): Promise<void> {
+  const start = $<HTMLButtonElement>('batchPreviewButton');
+  const cancel = $<HTMLButtonElement>('batchCancel');
+  const answers = $<HTMLButtonElement>('batchAnswers');
+  const puzzlesPdf = $<HTMLButtonElement>('batchPdf');
+  const preview = $('batchPreview');
+  const frame = $<HTMLIFrameElement>('batchFrame');
+  const open = $<HTMLAnchorElement>('batchOpen');
+  const status = $('batchMsg');
+  const count = input('batchCount').valueAsNumber;
+  const st = settings();
+  status.hidden = false;
+  if (!Number.isInteger(count) || count < 1 || count > 50 || st.seed + count - 1 > 999999) {
+    status.textContent = 'Укажите от 1 до 50 заданий. Последний номер в пакете должен быть не больше 999999.';
+    return;
+  }
+  const cell = BATCH_CELLS.find(size => size === Number(select('batchCell').value)) ?? BATCH_CELLS[0];
+  const { paper } = printOptions();
+  const color = ui.color;
+  const ink = inkSettings();
+  const appearanceFor = (p: Puzzle) => ({ ...ink, sheet: sheetColor(p, color) });
+  const controller = new AbortController();
+  start.disabled = true;
+  preview.hidden = true;
+  answers.onclick = null;
+  puzzlesPdf.onclick = null;
+  if (batchUrl) {
+    frame.removeAttribute('src');
+    open.removeAttribute('href');
+    URL.revokeObjectURL(batchUrl);
+    batchUrl = null;
+  }
+  cancel.hidden = false;
+  cancel.onclick = () => controller.abort();
+  try {
+    const { puzzles, skipped } = await generateBatch(st, count, status, controller.signal);
+    const range = `${puzzles[0]!.seed}-${puzzles[puzzles.length - 1]!.seed}`;
+    cancel.hidden = true;
+    status.textContent = 'Готовлю предпросмотр…';
+    await document.fonts.ready;
+    const blob = await pdfBlob(batchPdf(puzzles, appearanceFor, { paper, cell }, canvasLabeler));
+    batchUrl = URL.createObjectURL(blob);
+    frame.hidden = navigator.pdfViewerEnabled === false;
+    if (!frame.hidden) frame.src = batchUrl;
+    open.href = batchUrl;
+    const saveBatch = async (name: string, getBlob: () => Blob | Promise<Blob>) => {
+      start.disabled = puzzlesPdf.disabled = answers.disabled = true;
+      status.textContent = 'Готовлю PDF…';
+      try {
+        await savePdf(name, await getBlob(), status, true);
+      } catch (e) {
+        status.textContent = pdfError(e, 'сохранить PDF');
+      } finally {
+        start.disabled = puzzlesPdf.disabled = answers.disabled = false;
+      }
+    };
+    puzzlesPdf.onclick = () => saveBatch(`foldoku-pack-${range}.pdf`, () => blob);
+    answers.onclick = () => saveBatch(`foldoku-solutions-${range}.pdf`,
+      () => pdfBlob(batchAnswersPdf(puzzles, appearanceFor, paper, canvasLabeler)));
+    status.textContent = `Предпросмотр готов. Собрано ${puzzles.length} заданий, номера ${range}. Пропущено ${skipped}.`;
+    preview.hidden = false;
+  } catch (e) {
+    status.textContent = pdfError(e, 'подготовить предпросмотр');
+  } finally {
+    cancel.hidden = true;
+    cancel.onclick = null;
+    start.disabled = false;
   }
 }
 
@@ -219,9 +393,12 @@ function initPrint(): void {
   for (const id of ['paper', 'cell', 'flip', 'dx', 'dy', 'withSol']) $(id).addEventListener('change', () => store(PRINT_KEY, JSON.stringify(printOptions())));
   $('pdf').onclick = () => {
     const p = ui.puzzle;
-    if (p) void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, sheetColor(p), o, canvasLabeler), p.singleSided);
+    if (!p) return;
+    const appearance = { ...inkSettings(), sheet: sheetColor(p) };
+    void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, appearance, o, canvasLabeler), p.singleSided);
   };
   $('calib').onclick = () => void download('foldoku-calibration.pdf', o => calibrationPdf(o, canvasLabeler));
+  $('batchPreviewButton').onclick = () => void previewBatch();
 }
 
 function init(): void {
@@ -240,7 +417,7 @@ function init(): void {
       input('decoy').value = String(saved.decoy ?? 15);
       select('diag').value = String(saved.diag ?? 1);
       select('tech').value = String(saved.tech ?? 1);
-      select('sides').value = saved.singleSided ? 'single' : 'double';
+      select('sides').value = saved.singleSided === false ? 'double' : 'single';
       ui.color = saved.color ?? null;
     }
   } catch { /* ignore a broken saved state */ }
@@ -267,6 +444,7 @@ function init(): void {
       .then(() => { $('toast').textContent = 'Задание скопировано в буфер обмена.'; })
       .catch(() => { $('toast').textContent = 'Браузер не дал доступ к буферу обмена. Попробуйте открыть страницу локально.'; });
   };
+  initInk();
   initPrint();
   request();
 }

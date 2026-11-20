@@ -7,8 +7,8 @@ import { bbox, describe, N } from '../core/index.ts';
 import type { MoveKind, Puzzle } from '../core/index.ts';
 import { PdfDoc } from './pdf.ts';
 import type { PdfImage, PdfPage } from './pdf.ts';
-import { DASH, FADED, FOLD_INK, inkOf, mix, numberCell, paintAt, sheetScene, stepScene } from './render.ts';
-import type { Scene } from './render.ts';
+import { DASH, FADED, FOLD_INK, mix, numberCell, sheetInk, sheetScene, stepScene } from './render.ts';
+import type { Appearance, Scene } from './render.ts';
 
 export type PaperSize = 'a4' | 'letter';
 export type Flip = 'long' | 'short';
@@ -30,9 +30,13 @@ export interface PrintOptions {
 /** Cell sizes offered, in mm: the folded square is 48–88 mm wide. Larger cells fold more easily. */
 export const CELLS: readonly number[] = [12, 14, 16, 18, 20, 22];
 export const DEFAULT_CELL = 16;
+export const BATCH_CELLS = [8, 9, 10] as const;
 /** Colour runs this far past the cut line, so a slightly shifted back still reaches the edge. */
 export const BLEED = 2.5;
 const MARGIN = 14;
+const CROP_GAP = BLEED + 1.5;
+const CROP_LEN = 6;
+const CROP_EXTENT = CROP_GAP + CROP_LEN;
 
 /** Russian text as an image; `size` is the font size in mm, lines wrap at `maxWidth` mm. */
 export interface Label { image: PdfImage; w: number; h: number }
@@ -80,9 +84,9 @@ function drawScene(pg: PdfPage, sc: Scene, x: number, y: number, cellLines: bool
 }
 
 /** One side of the sheet with colour bled past its edges, drawn with its top-left corner at (x, y). */
-function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, sheet: string, x: number, y: number, CELL: number): void {
+function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, appearance: Appearance, x: number, y: number, CELL: number): void {
   const SIZE = N * CELL;
-  const ink = (cx: number, cy: number, q: 'n' | 'e' | 's' | 'w') => inkOf(paintAt(p.faces, side, cx, cy, q), q, sheet);
+  const ink = (cx: number, cy: number, q: 'n' | 'e' | 's' | 'w') => sheetInk(p.faces, side, cx, cy, q, appearance);
   const b = BLEED, L = N - 1;
   for (let i = 0; i < N; i++) {
     const at = x + i * CELL, down = y + i * CELL;
@@ -96,16 +100,15 @@ function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, sheet: string, x: number
   pg.fill(ink(0, L, 's')).rect(x - b, y + SIZE, b, b);
   pg.fill(ink(L, L, 's')).rect(x + SIZE, y + SIZE, b, b);
   const at = side === 0 ? numberCell(p) : -1;
-  drawScene(pg, sheetScene(p.faces, side, sheet, CELL, 0, 0, at, `${p.seed}.`), x, y, true);
+  drawScene(pg, sheetScene(p.faces, side, appearance, CELL, 0, 0, at, `${p.seed}.`), x, y, true);
 }
 
 /** Corner marks for cutting, placed outside the bleed. Only on the front: its print is the reference. */
 function cropMarks(pg: PdfPage, x: number, y: number, SIZE: number): void {
-  const g = BLEED + 1.5, len = 6;
   pg.save().stroke('#000000', 0.2);
   for (const [cx, sx] of [[x, -1], [x + SIZE, 1]] as const) for (const [cy, sy] of [[y, -1], [y + SIZE, 1]] as const) {
-    pg.line(cx + sx * g, cy, cx + sx * (g + len), cy);
-    pg.line(cx, cy + sy * g, cx, cy + sy * (g + len));
+    pg.line(cx + sx * CROP_GAP, cy, cx + sx * CROP_EXTENT, cy);
+    pg.line(cx, cy + sy * CROP_GAP, cx, cy + sy * CROP_EXTENT);
   }
   pg.restore();
 }
@@ -120,7 +123,7 @@ const LEVEL_NAME: Readonly<Record<Puzzle['level'], string>> = { easy: 'лёгк�
 const KIND: Readonly<Record<MoveKind, string>> = { full: '', flap: ' · часть слоёв', tuck: ' · задвигание' };
 
 /** Front, back and, optionally, the answer page of one puzzle. */
-export function puzzlePdf(p: Puzzle, sheet: string, o: PrintOptions, label: Labeler): PdfDoc {
+export function puzzlePdf(p: Puzzle, appearance: Appearance, o: PrintOptions, label: Labeler): PdfDoc {
   const [W, H] = PAPERS[o.paper];
   const { x, y } = sheetOrigin(o.paper, o.cell);
   const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
@@ -128,24 +131,64 @@ export function puzzlePdf(p: Puzzle, sheet: string, o: PrintOptions, label: Labe
   const head = `Foldoku · № ${p.seed} · ${LEVEL_NAME[p.level]}`;
 
   const front = doc.page(W, H);
-  drawSheet(front, p, 0, sheet, x, y, o.cell);
+  drawSheet(front, p, 0, appearance, x, y, o.cell);
   cropMarks(front, x, y, SIZE);
   put(front, label(`${head} · лицевая сторона`, 3.4, TEXT, true), x, y - BLEED - 14);
-  put(front, label('Вырежьте квадрат по меткам на углах. Сложите его по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона чёрная, другая белая.', 2.8, TEXT), x, y + SIZE + BLEED + 6);
+  put(front, label('Вырежьте квадрат по меткам на углах. Сложите его по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона тёмная, другая светлая.', 2.8, TEXT), x, y + SIZE + BLEED + 6);
 
   if (!p.singleSided) {
     const back = doc.page(W, H);
     back.save().transform(backMatrix(o));
-    drawSheet(back, p, 1, sheet, x, y, o.cell);
+    drawSheet(back, p, 1, appearance, x, y, o.cell);
     put(back, label(`${head} · оборот`, 3.4, TEXT, true), x, y - BLEED - 14);
     back.restore();
   }
 
-  if (o.solution) answerPage(doc.page(W, H), p, sheet, label);
+  if (o.solution) answerPage(doc.page(W, H), p, appearance, label);
   return doc;
 }
 
-function answerPage(pg: PdfPage, p: Puzzle, sheet: string, label: Labeler): void {
+export function batchPdf(
+  puzzles: readonly Puzzle[], appearanceFor: (p: Puzzle) => Appearance,
+  o: Pick<PrintOptions, 'paper'> & { cell: typeof BATCH_CELLS[number] }, label: Labeler,
+): PdfDoc {
+  if (!puzzles.length || puzzles.some(p => !p.singleSided)) {
+    throw new Error('Для пакета нужны односторонние задания.');
+  }
+  const [w, h] = PAPERS[o.paper];
+  const size = N * o.cell;
+  const gap = 2 * CROP_EXTENT + 2;
+  const xStart = (w - 2 * size - gap) / 2;
+  const title = label('Вырежьте по меткам. Сложите по линиям сетки и диагоналям в квадрат 4×4 с тёмной и светлой сторонами.', 2.8, w - 2 * MARGIN);
+  const yStart = MARGIN + title.h + CROP_EXTENT + 2;
+  const rows = Math.floor((h - MARGIN - CROP_EXTENT - yStart + gap) / (size + gap));
+  if (rows < 1) throw new Error('На странице не помещается строка заданий.');
+  const perPage = 2 * rows;
+  const doc = new PdfDoc('Foldoku', 'simplex');
+  for (let i = 0; i < puzzles.length; i += perPage) {
+    const page = doc.page(w, h);
+    put(page, title, w / 2, MARGIN, 'center');
+    for (const [slot, p] of puzzles.slice(i, i + perPage).entries()) {
+      const x = xStart + (slot % 2) * (size + gap);
+      const y = yStart + Math.floor(slot / 2) * (size + gap);
+      page.fill('#000000').text(`#${p.seed}`, x + size / 2, y - BLEED - 2, 3.4, 'center');
+      drawSheet(page, p, 0, appearanceFor(p), x, y, o.cell);
+      cropMarks(page, x, y, size);
+    }
+  }
+  return doc;
+}
+
+export function batchAnswersPdf(
+  puzzles: readonly Puzzle[], appearanceFor: (p: Puzzle) => Appearance, paper: PaperSize, label: Labeler,
+): PdfDoc {
+  const [w, h] = PAPERS[paper];
+  const doc = new PdfDoc('Foldoku Solutions', 'simplex');
+  for (const p of puzzles) answerPage(doc.page(w, h), p, appearanceFor(p), label);
+  return doc;
+}
+
+function answerPage(pg: PdfPage, p: Puzzle, appearance: Appearance, label: Labeler): void {
   const cols = 2, gap = 6, colW = (pg.w - 2 * MARGIN - gap) / cols, cs = 3.2, diag = N * cs + 2;
   let top = MARGIN;
   top += put(pg, label(`Foldoku · № ${p.seed} · решение`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
@@ -154,7 +197,7 @@ function answerPage(pg: PdfPage, p: Puzzle, sheet: string, label: Labeler): void
   const cards: ((x: number, y: number) => number)[] = p.folds.map((f, i) => (cx, cy) => {
     const nb = bbox(p.states[i + 1]!);
     let h = put(pg, label(`Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}`, 2.6, colW, true), cx, cy) + 1.5;
-    const sc = stepScene(p.states[i]!, p.faces, f, sheet, 'top', cs, 0.3, 0.6, p.singleSided);
+    const sc = stepScene(p.states[i]!, p.faces, f, appearance, 'top', cs, 0.3, 0.6, p.singleSided);
     drawScene(pg, sc, cx, cy + h, false, BACKDROP);
     const text = label(describe(f), 2.9, colW - diag - 3);
     put(pg, text, cx + diag + 3, cy + h);
@@ -164,10 +207,10 @@ function answerPage(pg: PdfPage, p: Puzzle, sheet: string, label: Labeler): void
   const last = p.states[p.states.length - 1]!;
   cards.push((cx, cy) => {
     let h = put(pg, label('Готово · 4×4', 2.6, colW, true), cx, cy) + 1.5;
-    const up = p.topColor === 'B' ? 'чёрная' : 'белая', down = p.topColor === 'B' ? 'белая' : 'чёрная';
+    const up = p.topColor === 'B' ? 'тёмная' : 'светлая', down = p.topColor === 'B' ? 'светлая' : 'тёмная';
     let sh = 0;
     for (const [i, [view, cap]] of ([['top', `Сверху: ${up}`], ['bottom', `Снизу: ${down}`]] as const).entries()) {
-      const sc = stepScene(last, p.faces, null, sheet, view, 4, 0.4, 0.6, p.singleSided);
+      const sc = stepScene(last, p.faces, null, appearance, view, 4, 0.4, 0.6, p.singleSided);
       const cx2 = cx + i * (sc.w + 10);
       drawScene(pg, sc, cx2, cy + h, false, BACKDROP);
       sh = Math.max(sh, sc.h + 1 + put(pg, label(cap, 2.6, sc.w + 8), cx2, cy + h + sc.h + 1));

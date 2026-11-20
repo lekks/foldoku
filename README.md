@@ -1,7 +1,7 @@
 # Foldoku
 
 A generator of paper-folding puzzles. Fold an 8×8 printed sheet along grid lines and
-cell diagonals into a 4×4 square that is solid black on one side and solid white on
+cell diagonals into a 4×4 square that is solid dark on one side and solid light on
 the other. Every generated sheet comes with a step-by-step solution and is solvable
 by construction.
 
@@ -16,7 +16,8 @@ npm run build        # → dist/index.html, one self-contained page
 
 Open `dist/index.html` in a browser to generate sheets. Choose «Односторонняя» under
 «Печать задания» to print on one side of white paper. The folded square still has a
-solid black side and a solid white side. The «Печать» block downloads a PDF (cell
+solid dark side and a solid light side. The shades and neutral-cell pattern can be
+adjusted before printing. The «Печать» block downloads a PDF (cell
 size 12–22 mm) with an optional answer page. In duplex mode it also offers a
 calibration sheet for measuring the printer's offset. See [docs/printing.md](docs/printing.md).
 
