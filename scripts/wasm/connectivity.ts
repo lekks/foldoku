@@ -10,7 +10,7 @@ interface Kernel {
   group_facets(count: number): void;
 }
 
-const path = process.env['FOLDOKU_BENCH_WASM'];
+const path = process.env['FOLDOPIA_BENCH_WASM'];
 if (!path || NB.length !== 256) throw new Error('Expected a WASM kernel for an 8×8 sheet');
 const binary = new WebAssembly.Module(readFileSync(path));
 const kernel = new WebAssembly.Instance(binary).exports as unknown as Kernel;

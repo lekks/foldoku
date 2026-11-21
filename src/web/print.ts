@@ -127,8 +127,8 @@ export function puzzlePdf(p: Puzzle, appearance: Appearance, o: PrintOptions, la
   const [W, H] = PAPERS[o.paper];
   const { x, y } = sheetOrigin(o.paper, o.cell);
   const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
-  const doc = new PdfDoc(`Foldoku ${p.seed}`, p.singleSided ? 'simplex' : o.flip);
-  const head = `Foldoku · № ${p.seed} · ${LEVEL_NAME[p.level]}`;
+  const doc = new PdfDoc(`Foldopia ${p.seed}`, p.singleSided ? 'simplex' : o.flip);
+  const head = `Foldopia · № ${p.seed} · ${LEVEL_NAME[p.level]}`;
 
   const front = doc.page(W, H);
   drawSheet(front, p, 0, appearance, x, y, o.cell);
@@ -164,7 +164,7 @@ export function batchPdf(
   const rows = Math.floor((h - MARGIN - CROP_EXTENT - yStart + gap) / (size + gap));
   if (rows < 1) throw new Error('На странице не помещается строка заданий.');
   const perPage = 2 * rows;
-  const doc = new PdfDoc('Foldoku', 'simplex');
+  const doc = new PdfDoc('Foldopia', 'simplex');
   for (let i = 0; i < puzzles.length; i += perPage) {
     const page = doc.page(w, h);
     put(page, title, w / 2, MARGIN, 'center');
@@ -183,7 +183,7 @@ export function batchAnswersPdf(
   puzzles: readonly Puzzle[], appearanceFor: (p: Puzzle) => Appearance, paper: PaperSize, label: Labeler,
 ): PdfDoc {
   const [w, h] = PAPERS[paper];
-  const doc = new PdfDoc('Foldoku Solutions', 'simplex');
+  const doc = new PdfDoc('Foldopia Solutions', 'simplex');
   for (const p of puzzles) answerPage(doc.page(w, h), p, appearanceFor(p), label);
   return doc;
 }
@@ -191,7 +191,7 @@ export function batchAnswersPdf(
 function answerPage(pg: PdfPage, p: Puzzle, appearance: Appearance, label: Labeler): void {
   const cols = 2, gap = 6, colW = (pg.w - 2 * MARGIN - gap) / cols, cs = 3.2, diag = N * cs + 2;
   let top = MARGIN;
-  top += put(pg, label(`Foldoku · № ${p.seed} · решение`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
+  top += put(pg, label(`Foldopia · № ${p.seed} · решение`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
   top += put(pg, label('Пунктир — долина: перегнуть поверх. Штрих-пунктир — гора: подогнуть под низ. Бледным показана часть, которая сгибается. Схемы показывают стопку сверху.', 2.6, pg.w - 2 * MARGIN), MARGIN, top) + 5;
 
   const cards: ((x: number, y: number) => number)[] = p.folds.map((f, i) => (cx, cy) => {
@@ -234,7 +234,7 @@ export function calibrationPdf(o: PrintOptions, label: Labeler): PdfDoc {
   // The target sits at the page centre, where every sheet size has its centre too.
   const { x, y } = sheetOrigin(o.paper, o.cell);
   const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
-  const doc = new PdfDoc('Foldoku calibration', o.flip);
+  const doc = new PdfDoc('Foldopia calibration', o.flip);
   const cx = W / 2, cy = y + SIZE / 2;
   const outline = (pg: PdfPage) => pg.save().stroke('#808080', 0.25, [2, 1.5]).rect(x, y, SIZE, SIZE, 'S').restore();
 

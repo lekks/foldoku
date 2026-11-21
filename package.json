@@ -1,5 +1,5 @@
 {
-  "name": "foldoku",
+  "name": "foldopia",
   "version": "0.2.1",
   "description": "Generator of solvable paper-folding puzzles: fold an 8×8 sheet into a 4×4 square, black on one side and white on the other.",
   "private": true,

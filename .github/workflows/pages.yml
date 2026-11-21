@@ -28,6 +28,7 @@ jobs:
       - run: npm run check
         env:
           ANALYTICS_HTML: ${{ vars.ANALYTICS_HTML }}
+          SITE_DOMAIN: foldopia.projlet.com
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

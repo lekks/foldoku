@@ -14,6 +14,8 @@ const src = join(root, 'src', 'web');
 const dist = join(root, 'dist');
 const manifest = join(root, 'package.json');
 const watch = process.argv.includes('--watch');
+// Set on hosted builds so GitHub Pages serves the custom domain.
+const siteDomain = process.env.SITE_DOMAIN ?? '';
 
 const common = { bundle: true, format: 'iife', target: 'es2022', charset: 'utf8', minify: !watch, logLevel: 'warning' };
 
@@ -27,7 +29,7 @@ const workerSource = {
       const wasm = buildGeneratorWasm();
       const out = await build({
         ...common, entryPoints: [join(src, 'worker.ts')], write: false, metafile: true,
-        define: { FOLDOKU_WASM_BASE64: JSON.stringify(wasm.toString('base64')) },
+        define: { FOLDOPIA_WASM_BASE64: JSON.stringify(wasm.toString('base64')) },
       });
       return {
         contents: `export default ${JSON.stringify(out.outputFiles[0].text)};`,
@@ -52,7 +54,7 @@ async function writePages(appJs) {
   }
   const revision = process.env.GITHUB_SHA ?? '';
   const buildVersion = /^[a-f0-9]{40}$/i.test(revision) ? `${version} · ${revision.slice(0, 7)}` : version;
-  const body = template.replace('<!-- FOLDOKU_VERSION -->', buildVersion);
+  const body = template.replace('<!-- FOLDOPIA_VERSION -->', buildVersion);
   const analytics = process.env.ANALYTICS_HTML || '';
   const style = `<style>\n${css}</style>`;
   const script = `<script>${safeScript(appJs)}</script>`;
@@ -72,8 +74,11 @@ ${body}${script}
   // The artifact host wraps the page itself; the extra meta promises that the side gutter clears system bars.
   const fragment = `${head}<meta name="claude:viewport-fit-sides" content="cover">\n${style}\n\n${body}${script}\n`;
   await mkdir(dist, { recursive: true });
-  await Promise.all([writeFile(join(dist, 'index.html'), full), writeFile(join(dist, 'artifact.html'), fragment)]);
-  console.log(`built dist/index.html (${(full.length / 1024).toFixed(1)} KB) and dist/artifact.html`);
+  const outputs = [writeFile(join(dist, 'index.html'), full), writeFile(join(dist, 'artifact.html'), fragment)];
+  if (siteDomain) outputs.push(writeFile(join(dist, 'CNAME'), `${siteDomain}\n`));
+  await Promise.all(outputs);
+  const target = siteDomain ? ` for ${siteDomain}` : '';
+  console.log(`built dist/index.html (${(full.length / 1024).toFixed(1)} KB) and dist/artifact.html${target}`);
 }
 
 const pages = {

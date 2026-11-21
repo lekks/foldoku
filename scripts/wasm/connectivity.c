@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-// The Foldoku sheet has 256 facets, with at most three neighbours each.
+// The Foldopia sheet has 256 facets, with at most three neighbours each.
 enum { FACETS = 256, EDGES = 3 };
 static int16_t neighbors[FACETS * EDGES];
 static uint16_t order[FACETS];

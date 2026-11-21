@@ -1,6 +1,6 @@
 # Printing
 
-How Foldoku turns a puzzle into a two-sided PDF whose front and back line up, and how a
+How Foldopia turns a puzzle into a two-sided PDF whose front and back line up, and how a
 player can calibrate their printer. The player-facing instructions (in Russian) live in
 the page itself, under «Как распечатать, чтобы стороны совпали» in `src/web/body.html`.
 

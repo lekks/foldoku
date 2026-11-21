@@ -17,7 +17,7 @@ const cases = [
   [101, 'mid', 0.15, 3, 2, true],
   [101, 'hard', 0.2, 2, 2, false],
 ];
-const work = mkdtempSync(join(tmpdir(), 'foldoku-bench-'));
+const work = mkdtempSync(join(tmpdir(), 'foldopia-bench-'));
 const cpp = join(work, 'generator.wasm');
 
 function compile(compiler, source, output, options) {
@@ -31,7 +31,7 @@ function compile(compiler, source, output, options) {
 
 try {
   writeFileSync(cpp, buildGeneratorWasm());
-  const html = process.env.FOLDOKU_BENCH_HTML;
+  const html = process.env.FOLDOPIA_BENCH_HTML;
   if (html) {
     const bundle = await build({
       bundle: true, platform: 'browser', format: 'iife', write: false,
@@ -75,7 +75,7 @@ try {
         },
       }],
     });
-    writeFileSync(html, '<!doctype html><meta charset="utf-8"><title>Foldoku WASM benchmark</title>'
+    writeFileSync(html, '<!doctype html><meta charset="utf-8"><title>Foldopia WASM benchmark</title>'
       + '<pre id="result">Running benchmark…</pre><script>'
       + bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script') + '</script>');
     console.log(`Open ${html} in a browser to run the benchmark`);
@@ -102,7 +102,7 @@ try {
           ${variant === 'cpp-wasm' ? `
             import { readFileSync } from 'node:fs';
             import { createGenerator } from './src/core/wasm.ts';
-            const generate = createGenerator(new WebAssembly.Module(readFileSync(process.env.FOLDOKU_BENCH_CPP)));
+            const generate = createGenerator(new WebAssembly.Module(readFileSync(process.env.FOLDOPIA_BENCH_CPP)));
           ` : 'const generate = tsGenerate;'}
           generate(7, 'easy', 0.15, 0, 0);
           const results = ${JSON.stringify(cases)}.map(args => {
@@ -136,7 +136,7 @@ try {
         const fd = openSync(output, 'w');
         try {
           execFileSync(process.execPath, [join(work, `${variant}.mjs`)], {
-            stdio: ['ignore', fd, 'inherit'], env: { ...process.env, FOLDOKU_BENCH_WASM: wasm, FOLDOKU_BENCH_CPP: cpp },
+            stdio: ['ignore', fd, 'inherit'], env: { ...process.env, FOLDOPIA_BENCH_WASM: wasm, FOLDOPIA_BENCH_CPP: cpp },
           });
         } finally {
           closeSync(fd);

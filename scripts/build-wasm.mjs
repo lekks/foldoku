@@ -26,7 +26,7 @@ export function buildGeneratorWasm() {
   if (!compiler || !linker) {
     throw new Error('Building the WASM generator requires clang++ and wasm-ld on PATH (or CLANGXX and WASM_LD).');
   }
-  const work = mkdtempSync(join(tmpdir(), 'foldoku-wasm-'));
+  const work = mkdtempSync(join(tmpdir(), 'foldopia-wasm-'));
   const binary = join(work, 'generator.wasm');
   try {
     execFileSync(compiler, [

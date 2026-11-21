@@ -1,4 +1,4 @@
-// Shared puzzle types and geometry used by the Foldoku interface and tests.
+// Shared puzzle types and geometry used by the Foldopia interface and tests.
 
 export type * from './types.ts';
 export { N, T, S, QS, QI, LINE, decode, isDiagonal } from './geometry.ts';

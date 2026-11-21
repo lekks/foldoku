@@ -135,7 +135,7 @@ export class PdfDoc {
     const catalog = reserve(), pagesObj = reserve(), font = reserve(), info = reserve();
     set(font, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
     const title = [...this.title].map(ch => (ch.charCodeAt(0) < 128 ? ch : '')).join('').replace(/[\\()]/g, ch => '\\' + ch);
-    set(info, `<< /Producer (Foldoku) /Title (${title}) >>`);
+    set(info, `<< /Producer (Foldopia) /Title (${title}) >>`);
     const kids: number[] = [];
     for (const p of this.pages) {
       const pageObj = reserve(), content = reserve();

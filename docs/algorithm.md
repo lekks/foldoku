@@ -1,8 +1,8 @@
-# Foldoku: generator algorithm
+# Foldopia: generator algorithm
 
-This document describes how the Foldoku generator in `src/core/` generates puzzle
+This document describes how the Foldopia generator in `src/core/` generates puzzle
 sheets in the style of *Manifold* by Jérôme Morin-Drouin (Russian edition: «Квадригами»).
-Foldoku is an independent project, not affiliated with that puzzle's publishers. It is written for
+Foldopia is an independent project, not affiliated with that puzzle's publishers. It is written for
 two kinds of readers: a developer who will rewrite this as production code, and an AI
 agent that has to reason about or extend the generator. Identifiers in `code` are the
 names used in the source; the code map below says where each one lives.

@@ -14,9 +14,9 @@ const COLORS: readonly (readonly [string, string])[] = [
   ['Жёлтый', '#d9d23a'], ['Сиреневый', '#a98bd0'], ['Красный', '#e2474b'],
   ['Оранжевый', '#f0a23a'], ['Бирюзовый', '#4fb5ad'], ['Серый', '#b4b0bf'],
 ];
-const STORAGE_KEY = 'foldoku';
-const PRINT_KEY = 'foldoku-print';
-const INK_KEY = 'foldoku-ink';
+const STORAGE_KEY = 'foldopia';
+const PRINT_KEY = 'foldopia-print';
+const INK_KEY = 'foldopia-ink';
 
 const $ = <E extends HTMLElement = HTMLElement>(id: string): E => document.getElementById(id) as E;
 const input = (id: string) => $<HTMLInputElement>(id);
@@ -73,7 +73,7 @@ function settings(): Settings {
 
 // Generation runs in a worker, so the page stays responsive on slow mixes.
 const gen: { worker: Worker | null; busy: boolean; id: number } = { worker: null, busy: false, id: 0 };
-const WORKER_ERROR = 'Не удалось запустить генератор. Откройте Foldoku в актуальной версии браузера.';
+const WORKER_ERROR = 'Не удалось запустить генератор. Откройте Foldopia в актуальной версии браузера.';
 
 function createWorker(): Worker {
   const url = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
@@ -379,8 +379,8 @@ async function previewBatch(): Promise<void> {
         start.disabled = puzzlesPdf.disabled = answers.disabled = false;
       }
     };
-    puzzlesPdf.onclick = () => saveBatch(`foldoku-pack-${range}.pdf`, () => blob);
-    answers.onclick = () => saveBatch(`foldoku-solutions-${range}.pdf`,
+    puzzlesPdf.onclick = () => saveBatch(`foldopia-pack-${range}.pdf`, () => blob);
+    answers.onclick = () => saveBatch(`foldopia-solutions-${range}.pdf`,
       () => pdfBlob(batchAnswersPdf(puzzles, appearanceFor, paper, canvasLabeler)));
     status.textContent = `Предпросмотр готов. Собрано ${puzzles.length} заданий, номера ${range}. Пропущено ${skipped}.`;
     preview.hidden = false;
@@ -410,9 +410,9 @@ function initPrint(): void {
     const p = ui.puzzle;
     if (!p) return;
     const appearance = { ...inkSettings(), sheet: sheetColor(p) };
-    void download(`foldoku-${p.seed}.pdf`, o => puzzlePdf(p, appearance, o, canvasLabeler), p.singleSided);
+    void download(`foldopia-${p.seed}.pdf`, o => puzzlePdf(p, appearance, o, canvasLabeler), p.singleSided);
   };
-  $('calib').onclick = () => void download('foldoku-calibration.pdf', o => calibrationPdf(o, canvasLabeler));
+  $('calib').onclick = () => void download('foldopia-calibration.pdf', o => calibrationPdf(o, canvasLabeler));
   $('batchPreviewButton').onclick = () => void previewBatch();
 }
 

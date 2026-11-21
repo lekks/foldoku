@@ -1,4 +1,4 @@
-// Freestanding, single-threaded Foldoku generator for WebAssembly.
+// Freestanding, single-threaded Foldopia generator for WebAssembly.
 #include <stdint.h>
 
 namespace {

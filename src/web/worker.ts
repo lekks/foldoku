@@ -3,7 +3,7 @@
 import { createGenerator } from '../core/wasm.ts';
 import type { Puzzle } from '../core/index.ts';
 
-declare const FOLDOKU_WASM_BASE64: string;
+declare const FOLDOPIA_WASM_BASE64: string;
 
 export type GenerateArgs = Parameters<ReturnType<typeof createGenerator>>;
 export interface WorkerRequest { id: number; args: GenerateArgs }
@@ -19,10 +19,10 @@ let generate: ReturnType<typeof createGenerator> | undefined;
 scope.onmessage = ({ data: { id, args } }) => {
   if (!generate) {
     try {
-      const bytes = Uint8Array.from(atob(FOLDOKU_WASM_BASE64), char => char.charCodeAt(0));
+      const bytes = Uint8Array.from(atob(FOLDOPIA_WASM_BASE64), char => char.charCodeAt(0));
       generate = createGenerator(new WebAssembly.Module(bytes));
     } catch {
-      scope.postMessage({ id, error: 'Не удалось запустить WebAssembly. Откройте Foldoku в актуальной версии браузера.' });
+      scope.postMessage({ id, error: 'Не удалось запустить WebAssembly. Откройте Foldopia в актуальной версии браузера.' });
       return;
     }
   }

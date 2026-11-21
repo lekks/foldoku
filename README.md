@@ -1,9 +1,11 @@
-# Foldoku
+# Foldopia
 
 A generator of paper-folding puzzles. Fold an 8×8 printed sheet along grid lines and
 cell diagonals into a 4×4 square that is solid dark on one side and solid light on
 the other. Every generated sheet comes with a step-by-step solution and is solvable
 by construction.
+
+The hosted version is at <https://foldopia.projlet.com>.
 
 ## Getting started
 
@@ -48,7 +50,7 @@ compiled to WebAssembly. It requires Clang, Clang++ and the LLVM WebAssembly lin
 (`WASM_LD` can point to its executable).
 Pass a baseline Git revision and round count to override `8605d7e` and three rounds.
 The benchmark checks the paint, moves, and intermediate states against the baseline.
-Set `FOLDOKU_BENCH_HTML=/tmp/foldoku-bench.html` to generate a standalone browser
+Set `FOLDOPIA_BENCH_HTML=/tmp/foldopia-bench.html` to generate a standalone browser
 benchmark comparing the optimized TypeScript and full C++/WebAssembly variants.
 The TypeScript generator is a reference for the benchmark. The app and golden
 tests use the C++ generator.
@@ -73,12 +75,12 @@ Prototype. See the roadmap for the path to a production version.
 
 ## License
 
-Foldoku is distributed under the [PolyForm Noncommercial License 1.0.0](LICENSE)
+Foldopia is distributed under the [PolyForm Noncommercial License 1.0.0](LICENSE)
 starting with version 0.2.1. For commercial use outside that license, contact
 [lekks](https://github.com/lekks) for separate permission. See [NOTICE](NOTICE).
 
 Published versions through 0.2.0 remain available under Apache License 2.0.
 
-Foldoku is an independent project. It is not affiliated with or endorsed by the
+Foldopia is an independent project. It is not affiliated with or endorsed by the
 publishers of Manifold, «Квадригами» or Foldology; those names belong to their
 respective owners.
