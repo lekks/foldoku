@@ -22,7 +22,7 @@ export function createGenerator(module: WebAssembly.Module) {
       kernel.set_neighbor(facet, edge, neighbor, x, y);
     }
   });
-  return (seed: number, level: Level = 'mid', decoy = 0.15, diag = 0, tech: Tech = 0, singleSided = false): Puzzle | null => {
+  return (seed: number, level: Level = 'mid', decoy = 0, diag = 0, tech: Tech = 0, singleSided = false): Puzzle | null => {
     const [lo, hi] = foldRange(level, diag, tech, singleSided);
     for (let retry = 0; retry < 32; retry++) {
       const ptr = kernel.generate_puzzle(seed + retry * 104729, lo, hi, decoy, diag, tech, +singleSided);

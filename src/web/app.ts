@@ -436,7 +436,7 @@ function init(): void {
     if (saved) {
       input('seed').value = String(saved.seed ?? 101);
       select('level').value = saved.level ?? 'mid';
-      input('decoy').value = String(saved.decoy ?? 15);
+      input('decoy').value = String(saved.decoy ?? 0);
       select('diag').value = String(saved.diag ?? 1);
       select('tech').value = String(saved.tech ?? 1);
       select('sides').value = saved.singleSided === false ? 'double' : 'single';

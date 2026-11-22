@@ -113,7 +113,7 @@ function tryFolds(R: Rng, flat: State, lo: number, hi: number, diag: number, tec
 const HALVES: readonly (readonly Quarter[])[] = [['n', 'e'], ['e', 's'], ['s', 'w'], ['w', 'n']];
 
 /** A solvable sheet for these settings, or null if the search gave up. Deterministic for equal inputs. */
-export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag = 0, tech: Tech = 0, singleSided = false): Puzzle | null {
+export function generate(seed: number, level: Level = 'mid', decoy = 0, diag = 0, tech: Tech = 0, singleSided = false): Puzzle | null {
   for (let retry = 0; retry < 32; retry++) {
     const puzzle = generateCandidate(seed + retry * 104729, level, decoy, diag, tech, singleSided);
     if (!puzzle) {

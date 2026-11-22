@@ -12,6 +12,7 @@ import { buildGeneratorWasm, generatorSource } from './build-wasm.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = join(root, 'src', 'web');
 const dist = join(root, 'dist');
+const pageFiles = ['head.html', 'body.html', 'styles.css', 'foldopia-mark.svg'].map(file => join(src, file));
 const manifest = join(root, 'package.json');
 const watch = process.argv.includes('--watch');
 // Set on hosted builds so GitHub Pages serves the custom domain.
@@ -34,7 +35,7 @@ const workerSource = {
       return {
         contents: `export default ${JSON.stringify(out.outputFiles[0].text)};`,
         loader: 'js',
-        watchFiles: [manifest, generatorSource, ...Object.keys(out.metafile.inputs).map(f => resolve(root, f))],
+        watchFiles: [manifest, generatorSource, ...pageFiles, ...Object.keys(out.metafile.inputs).map(f => resolve(root, f))],
       };
     });
   },
@@ -44,8 +45,8 @@ const workerSource = {
 const safeScript = js => js.replace(/<\/script/gi, '<\\/script');
 
 async function writePages(appJs) {
-  const [head, template, css, packageJson] = await Promise.all([
-    ...['head.html', 'body.html', 'styles.css'].map(f => readFile(join(src, f), 'utf8')),
+  const [headTemplate, template, css, mark, packageJson] = await Promise.all([
+    ...pageFiles.map(file => readFile(file, 'utf8')),
     readFile(manifest, 'utf8'),
   ]);
   const { version } = JSON.parse(packageJson);
@@ -54,6 +55,8 @@ async function writePages(appJs) {
   }
   const revision = process.env.GITHUB_SHA ?? '';
   const buildVersion = /^[a-f0-9]{40}$/i.test(revision) ? `${version} · ${revision.slice(0, 7)}` : version;
+  const icon = 'data:image/svg+xml,' + encodeURIComponent(mark.trim());
+  const head = headTemplate.replace('<!-- FOLDOPIA_FAVICON -->', icon);
   const body = template.replace('<!-- FOLDOPIA_VERSION -->', buildVersion);
   const analytics = process.env.ANALYTICS_HTML || '';
   const style = `<style>\n${css}</style>`;
