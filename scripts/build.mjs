@@ -1,7 +1,7 @@
 // Builds the page into self-contained HTML files, with styles and scripts inlined:
 //   dist/index.html     full document: open locally, print, or host anywhere
 //   dist/artifact.html  page fragment for Claude Artifacts, which supply the document skeleton
-// Usage: node scripts/build.mjs [--watch]
+// Usage: node scripts/build.mjs [--watch] [--serve=PORT]
 
 import { build, context } from 'esbuild';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -15,6 +15,7 @@ const dist = join(root, 'dist');
 const pageFiles = ['head.html', 'body.html', 'styles.css', 'foldopia-mark.svg'].map(file => join(src, file));
 const manifest = join(root, 'package.json');
 const watch = process.argv.includes('--watch');
+const serve = process.argv.find(arg => arg.startsWith('--serve='));
 // Set on hosted builds so GitHub Pages serves the custom domain.
 const siteDomain = process.env.SITE_DOMAIN ?? '';
 
@@ -94,9 +95,23 @@ const pages = {
 const options = { ...common, entryPoints: [join(src, 'app.ts')], write: false, plugins: [workerSource, pages] };
 
 if (watch) {
-  const ctx = await context(options);
-  await ctx.watch();
-  console.log('watching src/ …');
+  const ctx = await context(serve ? { ...options, outfile: join(dist, 'app.js') } : options);
+  try {
+    if (serve) {
+      const port = Number(serve.slice('--serve='.length));
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error('Expected a port from 1 to 65535');
+      }
+      await ctx.rebuild();
+      await ctx.serve({ host: '127.0.0.1', port, servedir: dist });
+      console.log(`Serving dist/ at http://127.0.0.1:${port}/`);
+    }
+    await ctx.watch();
+    console.log('watching src/ …');
+  } catch (error) {
+    await ctx.dispose();
+    throw error;
+  }
 } else {
   await build(options);
 }

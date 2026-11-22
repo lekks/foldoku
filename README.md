@@ -26,6 +26,11 @@ size 12–22 mm) with an optional answer page. In duplex mode it also offers a
 calibration sheet for measuring the printer's offset. See [docs/printing.md](docs/printing.md).
 The standalone page embeds the WASM generator and runs it in a Web Worker.
 
+If you have Make installed, use `make build`, `make test`, or `make check` to run
+the corresponding npm scripts. Run `make dev` and open <http://127.0.0.1:8080/>
+for local development. The server rebuilds the page as sources change. Refresh
+the browser to see the updated page. To use another port, run `make dev PORT=8081`.
+
 The footer shows the version from `package.json` and the short commit hash on
 GitHub Pages builds. Update the release version with
 `npm version <patch|minor|major> --no-git-tag-version` before publishing.
