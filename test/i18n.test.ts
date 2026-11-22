@@ -4,7 +4,15 @@ import { test } from 'node:test';
 import { describe } from '../src/core/describe.ts';
 import { languages } from '../src/core/language.ts';
 import type { FlapMove, TuckMove } from '../src/core/types.ts';
-import { messages, pageTranslations } from '../src/web/i18n.ts';
+import { messages, pageTranslations, preferredLanguage } from '../src/web/i18n.ts';
+
+test('English is the fallback when the browser offers no supported language', () => {
+  assert.equal(preferredLanguage(null, ['it-IT']), 'en');
+  assert.equal(preferredLanguage(null, ['be-BY']), 'en');
+  assert.equal(preferredLanguage(null, []), 'en');
+  assert.equal(preferredLanguage(null, ['it-IT', 'ru-RU']), 'ru');
+  assert.equal(preferredLanguage('ru', ['en-GB']), 'ru');
+});
 
 test('each language covers all page and dynamic translation keys', () => {
   const markup = readFileSync(new URL('../src/web/body.html', import.meta.url), 'utf8');

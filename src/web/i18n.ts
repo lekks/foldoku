@@ -13,7 +13,7 @@ export function preferredLanguage(saved: string | null, preferences: readonly st
     const supported = languages.find(language => language === base);
     if (supported) return supported;
   }
-  return 'ru';
+  return 'en';
 }
 
 export function translatePage(language: Language): void {

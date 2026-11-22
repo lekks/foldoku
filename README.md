@@ -58,7 +58,7 @@ tests use the C++ generator.
 ## Adding a language
 
 Foldopia supports Russian and English. The selector in the header overrides the
-browser preference and remembers the choice locally. Russian is the fallback.
+browser preference and remembers the choice locally. English is the fallback.
 
 1. Add the language code in `src/core/language.ts` and the option in
    `src/web/body.html`. Use the language's own name for the option.
