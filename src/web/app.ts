@@ -59,7 +59,7 @@ function applyLanguage(): void {
   translatePage(language);
   const text = messages[language];
   for (const [i, profile] of profileIds.entries()) {
-    select('profile').options[i]!.text = profileLabel(profile, language);
+    select('profile').options[i]!.text = profileLabel(profile, language, !input('doubleSided').checked);
   }
   for (const [i, [name]] of COLORS.entries()) {
     const button = $('swatches').children[i] as HTMLButtonElement;
@@ -118,13 +118,17 @@ function setCode(code: PuzzleCode): void {
   input('seed').value = formatCode(code);
   input('seed').setCustomValidity('');
   select('profile').value = code.profile;
+  input('doubleSided').checked = !!code.doubleSided;
+  for (const option of select('profile').options) {
+    option.text = profileLabel(option.value as Profile, language, !code.doubleSided);
+  }
   input('decoy').valueAsNumber = code.decoyPercent;
   $('decoyVal').textContent = code.decoyPercent + '%';
 }
 
-function generationArgs({ profile, seed, decoyPercent }: PuzzleCode): GenerateArgs {
+function generationArgs({ profile, seed, decoyPercent, doubleSided }: PuzzleCode): GenerateArgs {
   const { level, diag, tech } = profiles[profile];
-  return [seed, level, decoyPercent / 100, diag, tech, true];
+  return [seed, level, decoyPercent / 100, diag, tech, !doubleSided];
 }
 
 const gen: { worker: Worker | null; busy: boolean; id: number } = { worker: null, busy: false, id: 0 };
@@ -161,7 +165,7 @@ function request(): void {
   gen.id++;
   const args = generationArgs(st);
   $('board').classList.add('busy');
-  $('board').classList.add('single-sided');
+  $('board').classList.toggle('single-sided', !st.doubleSided);
   ui.puzzle = null;
   $<HTMLButtonElement>('pdf').disabled = true;
   $<HTMLButtonElement>('copy').disabled = true;
@@ -169,9 +173,10 @@ function request(): void {
   setStatus('toast');
   $('steps').hidden = true;
   $('solBox').hidden = false;
-  $('backPreview').hidden = true;
-  $('singlePrintHelp').hidden = false;
-  for (const el of document.querySelectorAll<HTMLElement>('[data-duplex]')) el.hidden = true;
+  $('backPreview').hidden = !st.doubleSided;
+  $('singlePrintHelp').hidden = !!st.doubleSided;
+  $('batchSection').hidden = !!st.doubleSided;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-duplex]')) el.hidden = !st.doubleSided;
   generationError = null;
   renderGenerationStatus();
   try {
@@ -522,7 +527,7 @@ function init(): void {
       ui.color = saved.color ?? null;
     }
   } catch { /* ignore a broken saved state */ }
-  const hash = location.hash.slice(1);
+  const hash = location.hash.slice(1).replace(/^%25/i, '%');
   setCode(parseCode(hash) ?? parseCode(hash.replace(/^n/, `${initial.profile}-`)) ?? initial);
 
   const applyCode = () => {
@@ -540,6 +545,16 @@ function init(): void {
   });
   select('profile').addEventListener('change', () => {
     setCode({ ...settings(), profile: select('profile').value as Profile });
+    request();
+  });
+  input('doubleSided').addEventListener('change', () => {
+    setCode({ ...settings(), doubleSided: input('doubleSided').checked });
+    request();
+  });
+  window.addEventListener('hashchange', () => {
+    const code = parseCode(location.hash.slice(1).replace(/^%25/i, '%'));
+    if (!code) return;
+    setCode(code);
     request();
   });
   input('decoy').addEventListener('input', () => {
