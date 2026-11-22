@@ -36,11 +36,11 @@ h2 { font-family: var(--display); font-weight: 500; font-size: 17px; margin: 0; 
 .controls { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); }
 .field { display: grid; gap: 6px; }
 .field > label, .field > .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
-input[type=number], select {
+input[type=number], #seed, select {
   font: 500 15px var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
   padding: 7px 10px; height: 38px; min-width: 0;
 }
-input[type=number] { width: 120px; }
+input[type=number], #seed { width: 120px; }
 input[type=range] { width: 150px; accent-color: var(--ink); height: 38px; }
 input[type=color] { width: 65px; height: 38px; padding: 4px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; }
 button {

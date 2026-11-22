@@ -5,6 +5,7 @@
 
 import { bbox, describe, N } from '../core/index.ts';
 import type { MoveKind, Puzzle } from '../core/index.ts';
+import { puzzleCode } from './profiles.ts';
 import { PdfDoc } from './pdf.ts';
 import type { PdfImage, PdfPage } from './pdf.ts';
 import { DASH, FADED, FOLD_INK, mix, numberCell, sheetInk, sheetScene, stepScene } from './render.ts';
@@ -74,7 +75,7 @@ function drawScene(pg: PdfPage, sc: Scene, x: number, y: number, cellLines: bool
     pg.restore();
   }
   if (sc.number) {
-    pg.save().alpha(0.55).fill('#000000').text(sc.number.text, sc.number.x, sc.number.y + sc.cs * 0.12, sc.cs * 0.3, 'center').restore();
+    pg.save().alpha(0.55).fill('#000000').text(sc.number.text, sc.number.x, sc.number.y + sc.cs * 0.12, sc.cs * Math.min(0.3, 1.45 / sc.number.text.length), 'center').restore();
   }
   if (sc.fold) {
     const { x1, y1, x2, y2, dir } = sc.fold;
@@ -100,7 +101,7 @@ function drawSheet(pg: PdfPage, p: Puzzle, side: 0 | 1, appearance: Appearance, 
   pg.fill(ink(0, L, 's')).rect(x - b, y + SIZE, b, b);
   pg.fill(ink(L, L, 's')).rect(x + SIZE, y + SIZE, b, b);
   const at = side === 0 ? numberCell(p) : -1;
-  drawScene(pg, sheetScene(p.faces, side, appearance, CELL, 0, 0, at, `${p.seed}.`), x, y, true);
+  drawScene(pg, sheetScene(p.faces, side, appearance, CELL, 0, 0, at, `${puzzleCode(p)}.`), x, y, true);
 }
 
 /** Corner marks for cutting, placed outside the bleed. Only on the front: its print is the reference. */
@@ -127,8 +128,8 @@ export function puzzlePdf(p: Puzzle, appearance: Appearance, o: PrintOptions, la
   const [W, H] = PAPERS[o.paper];
   const { x, y } = sheetOrigin(o.paper, o.cell);
   const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
-  const doc = new PdfDoc(`Foldopia ${p.seed}`, p.singleSided ? 'simplex' : o.flip);
-  const head = `Foldopia · № ${p.seed} · ${LEVEL_NAME[p.level]}`;
+  const doc = new PdfDoc(`Foldopia ${puzzleCode(p)}`, p.singleSided ? 'simplex' : o.flip);
+  const head = `Foldopia · № ${puzzleCode(p)} · ${LEVEL_NAME[p.level]}`;
 
   const front = doc.page(W, H);
   drawSheet(front, p, 0, appearance, x, y, o.cell);
@@ -171,7 +172,7 @@ export function batchPdf(
     for (const [slot, p] of puzzles.slice(i, i + perPage).entries()) {
       const x = xStart + (slot % 2) * (size + gap);
       const y = yStart + Math.floor(slot / 2) * (size + gap);
-      page.fill('#000000').text(`#${p.seed}`, x + size / 2, y - BLEED - 2, 3.4, 'center');
+      page.fill('#000000').text(`#${puzzleCode(p)}`, x + size / 2, y - BLEED - 2, 3.4, 'center');
       drawSheet(page, p, 0, appearanceFor(p), x, y, o.cell);
       cropMarks(page, x, y, size);
     }
@@ -191,7 +192,7 @@ export function batchAnswersPdf(
 function answerPage(pg: PdfPage, p: Puzzle, appearance: Appearance, label: Labeler): void {
   const cols = 2, gap = 6, colW = (pg.w - 2 * MARGIN - gap) / cols, cs = 3.2, diag = N * cs + 2;
   let top = MARGIN;
-  top += put(pg, label(`Foldopia · № ${p.seed} · решение`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
+  top += put(pg, label(`Foldopia · № ${puzzleCode(p)} · решение`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
   top += put(pg, label('Пунктир — долина: перегнуть поверх. Штрих-пунктир — гора: подогнуть под низ. Бледным показана часть, которая сгибается. Схемы показывают стопку сверху.', 2.6, pg.w - 2 * MARGIN), MARGIN, top) + 5;
 
   const cards: ((x: number, y: number) => number)[] = p.folds.map((f, i) => (cx, cy) => {

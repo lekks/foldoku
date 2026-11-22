@@ -136,7 +136,7 @@ export function toSvg(sc: Scene, label = ''): string {
     s += `<rect x="${c.x}" y="${c.y}" width="${sc.cs}" height="${sc.cs}" fill="none" stroke="#000" stroke-opacity=".18" stroke-width="${sc.cs / 50}"/>`;
   }
   if (sc.number) {
-    s += `<text x="${sc.number.x}" y="${sc.number.y + sc.cs * 0.09}" text-anchor="middle" fill="#000" fill-opacity=".55">${sc.number.text}</text>`;
+    s += `<text x="${sc.number.x}" y="${sc.number.y + sc.cs * 0.09}" text-anchor="middle" style="font-size:${sc.cs * Math.min(0.26, 1.4 / sc.number.text.length)}px" fill="#000" fill-opacity=".55">${sc.number.text}</text>`;
   }
   if (sc.fold) {
     const { x1, y1, x2, y2, dir } = sc.fold;

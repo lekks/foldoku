@@ -1,8 +1,9 @@
-import { foldRange } from '../core/difficulty.ts';
+import { defaultProfile, formatCode, maxSeed, parseCode, profileIds, profileLabel, profiles, puzzleCode } from './profiles.ts';
+import type { Profile, PuzzleCode } from './profiles.ts';
 // The generator page: reads the controls, generates in a worker, draws the sheet and the solution.
 
 import { bbox, describe, isDiagonal, N } from '../core/index.ts';
-import type { Level, MoveKind, Puzzle, Tech } from '../core/index.ts';
+import type { MoveKind, Puzzle } from '../core/index.ts';
 import { canvasLabeler } from './labels.ts';
 import { batchAnswersPdf, batchPdf, BATCH_CELLS, calibrationPdf, CELLS, DEFAULT_CELL, puzzlePdf } from './print.ts';
 import type { Flip, PaperSize, PrintOptions } from './print.ts';
@@ -59,20 +60,25 @@ function initInk(): void {
 
 const fmt = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
 
-interface Settings { seed: number; level: Level; diag: number; tech: Tech; decoy: number; singleSided: boolean }
+const defaultCode: PuzzleCode = { profile: defaultProfile, seed: 101, decoyPercent: 0 };
 
-function settings(): Settings {
-  return {
-    seed: Math.max(1, Math.min(999999, parseInt(input('seed').value, 10) || 1)),
-    level: select('level').value as Level,
-    diag: parseInt(select('diag').value, 10) || 0,
-    tech: (parseInt(select('tech').value, 10) || 0) as Tech,
-    singleSided: select('sides').value === 'single',
-    decoy: parseInt(input('decoy').value, 10) / 100,
-  };
+function settings(): PuzzleCode {
+  return parseCode(input('seed').value) ?? defaultCode;
 }
 
-// Generation runs in a worker, so the page stays responsive on slow mixes.
+function setCode(code: PuzzleCode): void {
+  input('seed').value = formatCode(code);
+  input('seed').setCustomValidity('');
+  select('profile').value = code.profile;
+  input('decoy').valueAsNumber = code.decoyPercent;
+  $('decoyVal').textContent = code.decoyPercent + '%';
+}
+
+function generationArgs({ profile, seed, decoyPercent }: PuzzleCode): GenerateArgs {
+  const { level, diag, tech } = profiles[profile];
+  return [seed, level, decoyPercent / 100, diag, tech, true];
+}
+
 const gen: { worker: Worker | null; busy: boolean; id: number } = { worker: null, busy: false, id: 0 };
 const WORKER_ERROR = 'Не удалось запустить генератор. Откройте Foldopia в актуальной версии браузера.';
 
@@ -105,26 +111,19 @@ function startWorker(): Worker {
 
 function request(): void {
   const st = settings();
-  for (const [level, name] of [['easy', 'Лёгкая'], ['mid', 'Средняя'], ['hard', 'Трудная']] as const) {
-    const [lo, hi] = foldRange(level, st.diag, st.tech, st.singleSided);
-    const count = lo === hi ? String(hi) : lo + '–' + hi;
-    select('level').querySelector('option[value="' + level + '"]')!.textContent =
-      name + ' · ' + count + (hi < 5 ? ' сгиба' : ' сгибов');
-  }
-  $('decoyVal').textContent = Math.round(st.decoy * 100) + '%';
   gen.id++;
-  const args: GenerateArgs = [st.seed, st.level, st.decoy, st.diag, st.tech, st.singleSided];
+  const args = generationArgs(st);
   $('board').classList.add('busy');
-  $('board').classList.toggle('single-sided', st.singleSided);
+  $('board').classList.add('single-sided');
   ui.puzzle = null;
   $<HTMLButtonElement>('pdf').disabled = true;
   $<HTMLButtonElement>('copy').disabled = true;
   $('printMsg').textContent = '';
   $('steps').hidden = true;
   $('solBox').hidden = false;
-  $('backPreview').hidden = st.singleSided;
-  $('singlePrintHelp').hidden = !st.singleSided;
-  for (const el of document.querySelectorAll<HTMLElement>('[data-duplex]')) el.hidden = st.singleSided;
+  $('backPreview').hidden = true;
+  $('singlePrintHelp').hidden = false;
+  for (const el of document.querySelectorAll<HTMLElement>('[data-duplex]')) el.hidden = true;
   $('meta').textContent = 'Складываю лист…';
   try {
     // A newer request makes the running one pointless: drop it rather than queue behind it.
@@ -161,15 +160,15 @@ const KIND: Readonly<Record<MoveKind, string>> = { full: '', flap: ' · част
 function show(): void {
   const p = ui.puzzle;
   if (!p) return;
-  const seed = p.seed;
+  const code = puzzleCode(p);
   const color = sheetColor(p);
   const appearance = { ...inkSettings(), sheet: color };
   document.documentElement.style.setProperty('--sheet', color);
   for (const b of $('swatches').children) b.setAttribute('aria-pressed', String((b as HTMLElement).dataset['c'] === color));
 
-  $('front').innerHTML = sheetSvg(p.faces, 0, appearance, numberCell(p), `${seed}.`);
+  $('front').innerHTML = sheetSvg(p.faces, 0, appearance, numberCell(p), `${code}.`);
   $('back').innerHTML = p.singleSided ? '' : sheetSvg(p.faces, 1, appearance);
-  $('capNo').textContent = `№ ${seed}`;
+  $('capNo').textContent = `№ ${code}`;
 
   // Measured in cells; a triangle is half a cell, a lone quarter is a quarter.
   const cnt = (c: 'B' | 'W') => p.faces.reduce((a, f) => a + f.reduce((t, face) => t + Object.values(face).filter(v => v === c).length, 0), 0) / 4;
@@ -178,7 +177,6 @@ function show(): void {
     `<span>Сгибов <b>${p.folds.length}</b></span><span>Диагональных <b>${p.folds.filter(f => isDiagonal(f.t)).length}</b></span>` +
     `<span>Частью слоёв <b>${kinds('flap')}</b></span><span>Задвиганий <b>${kinds('tuck')}</b></span>` +
     `<span>Тёмных клеток <b>${fmt(cnt('B'))}</b></span><span>Светлых клеток <b>${fmt(cnt('W'))}</b></span>` +
-    `<span>Ложных <b>${p.decoys}</b></span>` +
     `<span>Оценка <span class="stars" aria-label="${p.stars} из 5">${'■'.repeat(p.stars)}${'□'.repeat(5 - p.stars)}</span></span>` +
     `<span>Проверка <b>решаемо</b></span>`;
 
@@ -194,8 +192,7 @@ function show(): void {
   $('steps').hidden = !ui.showSol;
   $('solBox').hidden = ui.showSol;
   $('toast').textContent = '';
-  const st = settings();
-  store(STORAGE_KEY, JSON.stringify({ seed: st.seed, level: st.level, diag: st.diag, tech: st.tech, singleSided: st.singleSided, decoy: input('decoy').value, color: ui.color }));
+  store(STORAGE_KEY, JSON.stringify({ code: puzzleCode(p), color: ui.color }));
 }
 
 /** The current puzzle as JSON: each cell is four letters for its quarters n, e, s, w (B black, W white, N sheet colour). */
@@ -203,7 +200,7 @@ function exportJson(p: Puzzle): string {
   const rows = (side: 0 | 1) => Array.from({ length: N }, (_, y) =>
     p.faces.slice(y * N, y * N + N).map(f => f[side].n + f[side].e + f[side].s + f[side].w).join(' '));
   return JSON.stringify({
-    number: p.seed, level: p.level, diagonals: p.diag, techniques: p.tech, top: p.topColor,
+    code: puzzleCode(p), number: p.seed, level: p.level, diagonals: p.diag, techniques: p.tech, top: p.topColor,
     ...(p.singleSided ? { singleSided: true } : {}),
     front: rows(0),
     back: rows(1),
@@ -278,7 +275,7 @@ async function download(
 }
 
 async function generateBatch(
-  st: Settings, count: number, status: HTMLElement, signal: AbortSignal,
+  st: PuzzleCode, count: number, status: HTMLElement, signal: AbortSignal,
 ): Promise<{ puzzles: Puzzle[]; skipped: number }> {
   signal.throwIfAborted();
   const worker = createWorker();
@@ -291,12 +288,12 @@ async function generateBatch(
       cancel = () => reject(signal.reason);
       signal.addEventListener('abort', cancel, { once: true });
       const next = () => {
-        if (999999 - seed + 1 < count - puzzles.length) {
+        if (maxSeed - seed + 1 < count - puzzles.length) {
           reject(new Error(`До номера 999999 недостаточно заданий для полного пакета. Собрано ${puzzles.length} из ${count}, пропущено ${skipped}.`));
           return;
         }
-        status.textContent = `Проверяю № ${seed} · собрано ${puzzles.length} из ${count} · пропущено ${skipped}`;
-        const msg: WorkerRequest = { id: seed, args: [seed, st.level, st.decoy, st.diag, st.tech, true] };
+        status.textContent = `Проверяю № ${formatCode({ ...st, seed })} · собрано ${puzzles.length} из ${count} · пропущено ${skipped}`;
+        const msg: WorkerRequest = { id: seed, args: generationArgs({ ...st, seed }) };
         try {
           worker.postMessage(msg);
         } catch (e) {
@@ -319,7 +316,7 @@ async function generateBatch(
           next();
         }
       };
-      worker.onerror = () => reject(new Error(`Сбой генерации задания № ${seed}.`));
+      worker.onerror = () => reject(new Error(`Сбой генерации задания № ${formatCode({ ...st, seed })}.`));
       next();
     });
   } finally {
@@ -342,7 +339,7 @@ async function previewBatch(): Promise<void> {
   const count = input('batchCount').valueAsNumber;
   const st = settings();
   status.hidden = false;
-  if (!Number.isInteger(count) || count < 1 || count > 50 || st.seed + count - 1 > 999999) {
+  if (!Number.isInteger(count) || count < 1 || count > 50 || st.seed + count - 1 > maxSeed) {
     status.textContent = 'Укажите от 1 до 50 заданий. Последний номер в пакете должен быть не больше 999999.';
     return;
   }
@@ -366,7 +363,7 @@ async function previewBatch(): Promise<void> {
   cancel.onclick = () => controller.abort();
   try {
     const { puzzles, skipped } = await generateBatch(st, count, status, controller.signal);
-    const range = `${puzzles[0]!.seed}-${puzzles[puzzles.length - 1]!.seed}`;
+    const range = `${puzzleCode(puzzles[0]!)}-${puzzleCode(puzzles[puzzles.length - 1]!)}`;
     cancel.hidden = true;
     status.textContent = 'Готовлю предпросмотр…';
     await document.fonts.ready;
@@ -417,7 +414,7 @@ function initPrint(): void {
     const p = ui.puzzle;
     if (!p) return;
     const appearance = { ...inkSettings(), sheet: sheetColor(p) };
-    void download(`foldopia-${p.seed}.pdf`, o => puzzlePdf(p, appearance, o, canvasLabeler), p.singleSided);
+    void download(`foldopia-${puzzleCode(p)}.pdf`, o => puzzlePdf(p, appearance, o, canvasLabeler), p.singleSided);
   };
   $('calib').onclick = () => void download('foldopia-calibration.pdf', o => calibrationPdf(o, canvasLabeler));
   $('batchPreviewButton').onclick = () => void previewBatch();
@@ -431,29 +428,46 @@ function init(): void {
     b.onclick = () => { ui.color = c; show(); };
     $('swatches').appendChild(b);
   }
+  for (const profile of profileIds) select('profile').add(new Option(profileLabel(profile), profile));
+  let initial = defaultCode;
   try {
-    const saved = JSON.parse(load(STORAGE_KEY) ?? 'null') as Partial<Omit<Settings, 'decoy'> & { decoy: string; color: string | null }> | null;
+    const saved = JSON.parse(load(STORAGE_KEY) ?? 'null') as { code?: string; seed?: number; decoy?: string; color?: string } | null;
     if (saved) {
-      input('seed').value = String(saved.seed ?? 101);
-      select('level').value = saved.level ?? 'mid';
-      input('decoy').value = String(saved.decoy ?? 0);
-      select('diag').value = String(saved.diag ?? 1);
-      select('tech').value = String(saved.tech ?? 1);
-      select('sides').value = saved.singleSided === false ? 'double' : 'single';
+      initial = parseCode(saved.code ?? '') ?? parseCode(`${defaultProfile}-${saved.seed}-${saved.decoy ?? 0}`) ?? initial;
       ui.color = saved.color ?? null;
     }
   } catch { /* ignore a broken saved state */ }
-  const m = /^#n(\d+)$/.exec(location.hash);
-  if (m) input('seed').value = m[1]!;
+  const hash = location.hash.slice(1);
+  setCode(parseCode(hash) ?? parseCode(hash.replace(/^n/, `${initial.profile}-`)) ?? initial);
 
-  input('seed').addEventListener('input', request);
-  select('level').addEventListener('change', request);
-  input('decoy').addEventListener('input', request);
-  select('sides').addEventListener('change', request);
-  select('diag').addEventListener('change', request);
-  select('tech').addEventListener('change', request);
-  $('next').onclick = () => { input('seed').value = String(Math.min(999999, (parseInt(input('seed').value, 10) || 0) + 1)); request(); };
-  $('prev').onclick = () => { input('seed').value = String(Math.max(1, (parseInt(input('seed').value, 10) || 2) - 1)); request(); };
+  const applyCode = () => {
+    const field = input('seed');
+    const code = parseCode(field.value);
+    field.setCustomValidity(code ? '' : 'Введите код задания, например D-101.');
+    if (!code) { field.reportValidity(); return; }
+    setCode(code);
+    request();
+  };
+  input('seed').addEventListener('input', () => input('seed').setCustomValidity(''));
+  input('seed').addEventListener('change', applyCode);
+  input('seed').addEventListener('keydown', event => {
+    if (event.key === 'Enter') input('seed').blur();
+  });
+  select('profile').addEventListener('change', () => {
+    setCode({ ...settings(), profile: select('profile').value as Profile });
+    request();
+  });
+  input('decoy').addEventListener('input', () => {
+    setCode({ ...settings(), decoyPercent: input('decoy').valueAsNumber });
+    request();
+  });
+  const step = (delta: number) => {
+    const current = settings();
+    setCode({ ...current, seed: Math.max(1, Math.min(maxSeed, current.seed + delta)) });
+    request();
+  };
+  $('next').onclick = () => step(1);
+  $('prev').onclick = () => step(-1);
   $('toggleSol').onclick = () => {
     ui.showSol = !ui.showSol;
     $('toggleSol').textContent = ui.showSol ? 'Скрыть решение' : 'Показать решение';

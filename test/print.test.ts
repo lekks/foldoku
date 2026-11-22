@@ -91,14 +91,14 @@ test('batch PDF fills rows in two columns and solutions use a separate PDF', asy
   assert.ok(p);
   const puzzles = Array.from({ length: 7 }, (_, i) => ({ ...p, seed: p.seed + i }));
   const color = () => appearance;
-  const ids = (ops: string[]) => ops.flatMap(op => /\(#(\d+)\) Tj/.exec(op)?.[1] ?? []);
+  const ids = (ops: string[]) => ops.flatMap(op => /\(#(C-\d+-15)\) Tj/.exec(op)?.[1] ?? []);
   const positions = (ops: string[]) => ops.flatMap(op => {
     const match = /^1 0 0 1 ([\d.]+) ([\d.]+) cm$/.exec(op);
     return match ? [[Number(match[1]), Number(match[2])]] : [];
   });
   const a4 = batchPdf(puzzles, color, { paper: 'a4', cell: 8 }, stub);
-  assert.deepEqual(ids(a4.pages[0]!.ops), ['101', '102', '103', '104', '105', '106']);
-  assert.deepEqual(ids(a4.pages[1]!.ops), ['107']);
+  assert.deepEqual(ids(a4.pages[0]!.ops), ['C-101-15', 'C-102-15', 'C-103-15', 'C-104-15', 'C-105-15', 'C-106-15']);
+  assert.deepEqual(ids(a4.pages[1]!.ops), ['C-107-15']);
   const origins = positions(a4.pages[0]!.ops);
   assert.equal(new Set(origins.map(([x]) => x)).size, 2);
   assert.deepEqual(origins.filter((_, i) => i % 2 === 0).map(([, y]) => y), [
@@ -109,5 +109,5 @@ test('batch PDF fills rows in two columns and solutions use a separate PDF', asy
   assert.deepEqual(solutions.pages.map(page => ids(page.ops)), Array.from({ length: 7 }, () => []));
   assertWellFormed(await solutions.bytes(), 7);
   const letter = batchPdf(puzzles, color, { paper: 'letter', cell: 8 }, stub);
-  assert.deepEqual(letter.pages.map(page => ids(page.ops)), [['101', '102', '103', '104'], ['105', '106', '107']]);
+  assert.deepEqual(letter.pages.map(page => ids(page.ops)), [['C-101-15', 'C-102-15', 'C-103-15', 'C-104-15'], ['C-105-15', 'C-106-15', 'C-107-15']]);
 });

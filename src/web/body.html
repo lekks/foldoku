@@ -8,40 +8,12 @@
 
   <section class="controls" aria-label="Параметры">
     <div class="field">
-      <label for="seed">Номер задания</label>
-      <input id="seed" type="number" min="1" max="999999" value="101">
+      <label for="seed">Код задания</label>
+      <input id="seed" type="text" value="D-101" placeholder="D-101" maxlength="16" autocomplete="off" spellcheck="false">
     </div>
     <div class="field">
-      <label for="level">Сложность</label>
-      <select id="level">
-        <option value="easy">Лёгкая · 2–3 сгиба</option>
-        <option value="mid" selected>Средняя · 4–5 сгибов</option>
-        <option value="hard">Трудная · 6–8 сгибов</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="sides">Печать задания</label>
-      <select id="sides">
-        <option value="double">Двусторонняя</option>
-        <option value="single" selected>Односторонняя</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="diag">Диагонали</label>
-      <select id="diag">
-        <option value="0">Без диагоналей</option>
-        <option value="1" selected>1 диагональный сгиб</option>
-        <option value="2">2 диагональных сгиба</option>
-        <option value="3">3 диагональных сгиба</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="tech">Приёмы</label>
-      <select id="tech">
-        <option value="0">Только целые сгибы</option>
-        <option value="1" selected>+ сгибы части слоёв</option>
-        <option value="2">+ задвигания внутрь</option>
-      </select>
+      <label for="profile">Сложность</label>
+      <select id="profile"></select>
     </div>
     <div class="field">
       <label for="decoy">Ложные клетки <span class="val" id="decoyVal">0%</span></label>
