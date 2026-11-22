@@ -1,6 +1,6 @@
 {
   "name": "foldopia",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "Generator of solvable paper-folding puzzles: fold an 8×8 sheet into a 4×4 square, black on one side and white on the other.",
   "private": true,
   "type": "module",
