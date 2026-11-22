@@ -1,10 +1,12 @@
+import type { Language } from '../core/language.ts';
+import { messages, formatNumber } from './i18n.ts';
 // Print layouts: the puzzle sheet on two pages (front, back) that line up when printed on both sides of one
 // sheet of paper, an optional answer page, and a calibration sheet that measures the printer's duplex offset.
 // Pure: Russian text arrives as images from a Labeler, so the layouts also run in Node.
 // See docs/printing.md.
 
 import { bbox, describe, N } from '../core/index.ts';
-import type { MoveKind, Puzzle } from '../core/index.ts';
+import type { Puzzle } from '../core/index.ts';
 import { puzzleCode } from './profiles.ts';
 import { PdfDoc } from './pdf.ts';
 import type { PdfImage, PdfPage } from './pdf.ts';
@@ -120,50 +122,50 @@ function put(pg: PdfPage, l: Label, x: number, y: number, align: 'left' | 'cente
 }
 
 const BACKDROP = '#d9dadf';
-const LEVEL_NAME: Readonly<Record<Puzzle['level'], string>> = { easy: 'лёгкая', mid: 'средняя', hard: 'трудная' };
-const KIND: Readonly<Record<MoveKind, string>> = { full: '', flap: ' · часть слоёв', tuck: ' · задвигание' };
 
 /** Front, back and, optionally, the answer page of one puzzle. */
-export function puzzlePdf(p: Puzzle, appearance: Appearance, o: PrintOptions, label: Labeler): PdfDoc {
+export function puzzlePdf(p: Puzzle, appearance: Appearance, o: PrintOptions, label: Labeler, language: Language = 'ru'): PdfDoc {
+  const text = messages[language];
   const [W, H] = PAPERS[o.paper];
   const { x, y } = sheetOrigin(o.paper, o.cell);
   const SIZE = N * o.cell, TEXT = Math.max(SIZE, 150);
   const doc = new PdfDoc(`Foldopia ${puzzleCode(p)}`, p.singleSided ? 'simplex' : o.flip);
-  const head = `Foldopia · № ${puzzleCode(p)} · ${LEVEL_NAME[p.level]}`;
+  const head = `Foldopia · ${text.number} ${puzzleCode(p)} · ${text[p.level]}`;
 
   const front = doc.page(W, H);
   drawSheet(front, p, 0, appearance, x, y, o.cell);
   cropMarks(front, x, y, SIZE);
-  put(front, label(`${head} · лицевая сторона`, 3.4, TEXT, true), x, y - BLEED - 14);
-  put(front, label('Вырежьте квадрат по меткам на углах. Сложите его по линиям сетки и диагоналям клеток в квадрат 4×4: одна сторона тёмная, другая светлая.', 2.8, TEXT), x, y + SIZE + BLEED + 6);
+  put(front, label(`${head} · ${text.printFront}`, 3.4, TEXT, true), x, y - BLEED - 14);
+  put(front, label(text.printInstructions, 2.8, TEXT), x, y + SIZE + BLEED + 6);
 
   if (!p.singleSided) {
     const back = doc.page(W, H);
     back.save().transform(backMatrix(o));
     drawSheet(back, p, 1, appearance, x, y, o.cell);
-    put(back, label(`${head} · оборот`, 3.4, TEXT, true), x, y - BLEED - 14);
+    put(back, label(`${head} · ${text.printBack}`, 3.4, TEXT, true), x, y - BLEED - 14);
     back.restore();
   }
 
-  if (o.solution) answerPage(doc.page(W, H), p, appearance, label);
+  if (o.solution) answerPage(doc.page(W, H), p, appearance, label, language);
   return doc;
 }
 
 export function batchPdf(
   puzzles: readonly Puzzle[], appearanceFor: (p: Puzzle) => Appearance,
-  o: Pick<PrintOptions, 'paper'> & { cell: typeof BATCH_CELLS[number] }, label: Labeler,
+  o: Pick<PrintOptions, 'paper'> & { cell: typeof BATCH_CELLS[number] }, label: Labeler, language: Language = 'ru',
 ): PdfDoc {
+  const text = messages[language];
   if (!puzzles.length || puzzles.some(p => !p.singleSided)) {
-    throw new Error('Для пакета нужны односторонние задания.');
+    throw new Error(text.batchSimplex);
   }
   const [w, h] = PAPERS[o.paper];
   const size = N * o.cell;
   const gap = 2 * CROP_EXTENT + 2;
   const xStart = (w - 2 * size - gap) / 2;
-  const title = label('Вырежьте по меткам. Сложите по линиям сетки и диагоналям в квадрат 4×4 с тёмной и светлой сторонами.', 2.8, w - 2 * MARGIN);
+  const title = label(text.batchInstructions, 2.8, w - 2 * MARGIN);
   const yStart = MARGIN + title.h + CROP_EXTENT + 2;
   const rows = Math.floor((h - MARGIN - CROP_EXTENT - yStart + gap) / (size + gap));
-  if (rows < 1) throw new Error('На странице не помещается строка заданий.');
+  if (rows < 1) throw new Error(text.batchRow);
   const perPage = 2 * rows;
   const doc = new PdfDoc('Foldopia', 'simplex');
   for (let i = 0; i < puzzles.length; i += perPage) {
@@ -181,36 +183,37 @@ export function batchPdf(
 }
 
 export function batchAnswersPdf(
-  puzzles: readonly Puzzle[], appearanceFor: (p: Puzzle) => Appearance, paper: PaperSize, label: Labeler,
+  puzzles: readonly Puzzle[], appearanceFor: (p: Puzzle) => Appearance, paper: PaperSize, label: Labeler, language: Language = 'ru',
 ): PdfDoc {
   const [w, h] = PAPERS[paper];
   const doc = new PdfDoc('Foldopia Solutions', 'simplex');
-  for (const p of puzzles) answerPage(doc.page(w, h), p, appearanceFor(p), label);
+  for (const p of puzzles) answerPage(doc.page(w, h), p, appearanceFor(p), label, language);
   return doc;
 }
 
-function answerPage(pg: PdfPage, p: Puzzle, appearance: Appearance, label: Labeler): void {
+function answerPage(pg: PdfPage, p: Puzzle, appearance: Appearance, label: Labeler, language: Language): void {
+  const text = messages[language];
   const cols = 2, gap = 6, colW = (pg.w - 2 * MARGIN - gap) / cols, cs = 3.2, diag = N * cs + 2;
   let top = MARGIN;
-  top += put(pg, label(`Foldopia · № ${puzzleCode(p)} · решение`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
-  top += put(pg, label('Пунктир — долина: перегнуть поверх. Штрих-пунктир — гора: подогнуть под низ. Бледным показана часть, которая сгибается. Схемы показывают стопку сверху.', 2.6, pg.w - 2 * MARGIN), MARGIN, top) + 5;
+  top += put(pg, label(`Foldopia · ${text.number} ${puzzleCode(p)} · ${text.printSolution}`, 4.2, pg.w - 2 * MARGIN, true), MARGIN, top) + 2;
+  top += put(pg, label(text.answerLegend, 2.6, pg.w - 2 * MARGIN), MARGIN, top) + 5;
 
   const cards: ((x: number, y: number) => number)[] = p.folds.map((f, i) => (cx, cy) => {
     const nb = bbox(p.states[i + 1]!);
-    let h = put(pg, label(`Шаг ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${KIND[f.kind]}`, 2.6, colW, true), cx, cy) + 1.5;
+    let h = put(pg, label(`${text.step} ${i + 1} · ${f.box.w}×${f.box.h} → ${nb.w}×${nb.h}${f.kind === 'full' ? '' : text[f.kind]}`, 2.6, colW, true), cx, cy) + 1.5;
     const sc = stepScene(p.states[i]!, p.faces, f, appearance, 'top', cs, 0.3, 0.6, p.singleSided);
     drawScene(pg, sc, cx, cy + h, false, BACKDROP);
-    const text = label(describe(f), 2.9, colW - diag - 3);
-    put(pg, text, cx + diag + 3, cy + h);
-    h += Math.max(sc.h, text.h);
+    const instruction = label(describe(f, language), 2.9, colW - diag - 3);
+    put(pg, instruction, cx + diag + 3, cy + h);
+    h += Math.max(sc.h, instruction.h);
     return h;
   });
   const last = p.states[p.states.length - 1]!;
   cards.push((cx, cy) => {
-    let h = put(pg, label('Готово · 4×4', 2.6, colW, true), cx, cy) + 1.5;
-    const up = p.topColor === 'B' ? 'тёмная' : 'светлая', down = p.topColor === 'B' ? 'светлая' : 'тёмная';
+    let h = put(pg, label(text.complete, 2.6, colW, true), cx, cy) + 1.5;
+    const up = p.topColor === 'B' ? text.dark : text.light, down = p.topColor === 'B' ? text.light : text.dark;
     let sh = 0;
-    for (const [i, [view, cap]] of ([['top', `Сверху: ${up}`], ['bottom', `Снизу: ${down}`]] as const).entries()) {
+    for (const [i, [view, cap]] of ([['top', `${text.top}: ${up}`], ['bottom', `${text.bottom}: ${down}`]] as const).entries()) {
       const sc = stepScene(last, p.faces, null, appearance, view, 4, 0.4, 0.6, p.singleSided);
       const cx2 = cx + i * (sc.w + 10);
       drawScene(pg, sc, cx2, cy + h, false, BACKDROP);
@@ -230,7 +233,8 @@ function answerPage(pg: PdfPage, p: Puzzle, appearance: Appearance, label: Label
  * Two pages: a target on the front, a millimetre grid on the back. A pin pushed through the target's centre
  * comes out on the grid at the back's error; the reading, added to the current offset, cancels it.
  */
-export function calibrationPdf(o: PrintOptions, label: Labeler): PdfDoc {
+export function calibrationPdf(o: PrintOptions, label: Labeler, language: Language = 'ru'): PdfDoc {
+  const text = messages[language];
   const [W, H] = PAPERS[o.paper];
   // The target sits at the page centre, where every sheet size has its centre too.
   const { x, y } = sheetOrigin(o.paper, o.cell);
@@ -247,9 +251,9 @@ export function calibrationPdf(o: PrintOptions, label: Labeler): PdfDoc {
   for (const r of [2, 5, 9]) front.circle(cx, cy, r);
   front.restore();
   let t = y - BLEED - 22;
-  t += put(front, label('Калибровка двусторонней печати · лицевая сторона', 3.4, TEXT, true), x, t) + 2;
-  put(front, label('Напечатайте этот файл на одном листе с двух сторон. Проколите лист иглой точно в центре креста.', 2.8, TEXT), x, t);
-  put(front, label(`Текущий сдвиг оборота: X ${fmt(o.dx)} мм, Y ${fmt(o.dy)} мм. Переворот по ${o.flip === 'long' ? 'длинному' : 'короткому'} краю.`, 2.6, TEXT), x, y + SIZE + BLEED + 6);
+  t += put(front, label(text.calibrationFront, 3.4, TEXT, true), x, t) + 2;
+  put(front, label(text.calibrationTarget, 2.8, TEXT), x, t);
+  put(front, label(text.calibrationOffset(formatNumber(o.dx, language), formatNumber(o.dy, language), o.flip === 'long'), 2.6, TEXT), x, y + SIZE + BLEED + 6);
 
   const back = doc.page(W, H);
   back.save().transform(backMatrix(o));
@@ -271,13 +275,10 @@ export function calibrationPdf(o: PrintOptions, label: Labeler): PdfDoc {
   }
   back.text('X', cx + A + 2.4, cy - R - 0.8, 2.2);
   back.text('Y', cx - R - 1.5, cy + A + 4.4, 2.2, 'center');
-  put(back, label('Ось X — вправо, ось Y — вниз. Деления по 1 мм, тонкие линии через 0,5 мм.', 2.6, TEXT), x, cy + A + 8);
+  put(back, label(text.calibrationGrid, 2.6, TEXT), x, cy + A + 8);
   t = y - BLEED - 22;
-  t += put(back, label('Калибровка · оборот', 3.4, TEXT, true), x, t) + 2;
-  put(back, label('Найдите прокол на сетке и запишите его координаты X и Y. Прибавьте их к сдвигу оборота в генераторе и напечатайте калибровку ещё раз: прокол должен попасть в ноль.', 2.8, TEXT), x, t);
+  t += put(back, label(text.calibrationBack, 3.4, TEXT, true), x, t) + 2;
+  put(back, label(text.calibrationCorrection, 2.8, TEXT), x, t);
   back.restore();
   return doc;
 }
-
-const fmt = (n: number) => String(n).replace('.', ',');
-

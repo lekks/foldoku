@@ -1,3 +1,5 @@
+import type { Language } from '../core/language.ts';
+import { messages } from './i18n.ts';
 import { foldRange } from '../core/difficulty.ts';
 import type { Level, Puzzle, Tech } from '../core/types.ts';
 
@@ -46,11 +48,10 @@ export function puzzleCode(p: Puzzle): string {
     ? formatCode({ profile, seed: p.seed, decoyPercent }) : String(p.seed);
 }
 
-export function profileLabel(id: Profile): string {
+export function profileLabel(id: Profile, language: Language = 'ru'): string {
   const { level, diag, tech } = profiles[id];
   const [lo, hi] = foldRange(level, diag, tech, true);
   const count = lo === hi ? String(lo) : `${lo}–${hi}`;
-  const diagonals = ['без диагоналей', '1 диагональ', '2 диагонали', '3 диагонали'];
-  const techniques = [' · только сгибы всех слоёв', ' · сгиб части слоёв', ' · задвигание'];
-  return `${id} · ${count} ${hi < 5 ? 'сгиба' : 'сгибов'} · ${diagonals[diag]}${techniques[tech]}`;
+  const text = messages[language];
+  return `${id} · ${text.foldCount(count, hi)} · ${text.diagonals[diag]} · ${text.techniques[tech]}`;
 }

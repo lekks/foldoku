@@ -1,3 +1,5 @@
+import type { Language } from '../core/language.ts';
+import { messages } from './i18n.ts';
 // Drawings of sheets and fold steps. A drawing is first built as a scene of polygons and lines, which is then
 // written out as SVG for the page or as PDF for printing. Pure: no DOM, so it also runs in Node.
 
@@ -145,8 +147,9 @@ export function toSvg(sc: Scene, label = ''): string {
   return s + '</svg>';
 }
 
-export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, appearance: Appearance, numberAt = -1, number = ''): string {
-  return toSvg(sheetScene(faces, side, appearance, 100, 10, 16, numberAt, number), side ? 'Оборот листа' : 'Лицевая сторона листа');
+export function sheetSvg(faces: readonly CellPaint[], side: 0 | 1, appearance: Appearance, numberAt = -1, number = '', language: Language = 'ru'): string {
+  const label = side ? messages[language].sheetBack : messages[language].sheetFront;
+  return toSvg(sheetScene(faces, side, appearance, 100, 10, 16, numberAt, number), label);
 }
 
 export function stepSvg(m: State, faces: readonly CellPaint[], f: Move | null, appearance: Appearance, view: 'top' | 'bottom' = 'top', singleSided = false): string {

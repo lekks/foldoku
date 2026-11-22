@@ -7,7 +7,7 @@ declare const FOLDOPIA_WASM_BASE64: string;
 
 export type GenerateArgs = Parameters<ReturnType<typeof createGenerator>>;
 export interface WorkerRequest { id: number; args: GenerateArgs }
-export type WorkerReply = { id: number; puzzle: Puzzle | null } | { id: number; error: string };
+export type WorkerReply = { id: number; puzzle: Puzzle | null } | { id: number; error: 'workerStart' | 'workerGenerate' };
 
 // The project compiles against the DOM library, so describe the worker scope by hand.
 const scope = self as unknown as {
@@ -22,13 +22,13 @@ scope.onmessage = ({ data: { id, args } }) => {
       const bytes = Uint8Array.from(atob(FOLDOPIA_WASM_BASE64), char => char.charCodeAt(0));
       generate = createGenerator(new WebAssembly.Module(bytes));
     } catch {
-      scope.postMessage({ id, error: 'Не удалось запустить WebAssembly. Откройте Foldopia в актуальной версии браузера.' });
+      scope.postMessage({ id, error: 'workerStart' });
       return;
     }
   }
   try {
     scope.postMessage({ id, puzzle: generate(...args) });
   } catch {
-    scope.postMessage({ id, error: `Сбой генерации задания № ${args[0]}.` });
+    scope.postMessage({ id, error: 'workerGenerate' });
   }
 };

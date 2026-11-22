@@ -55,6 +55,20 @@ benchmark comparing the optimized TypeScript and full C++/WebAssembly variants.
 The TypeScript generator is a reference for the benchmark. The app and golden
 tests use the C++ generator.
 
+## Adding a language
+
+Foldopia supports Russian and English. The selector in the header overrides the
+browser preference and remembers the choice locally. Russian is the fallback.
+
+1. Add the language code in `src/core/language.ts` and the option in
+   `src/web/body.html`. Use the language's own name for the option.
+2. Use `src/web/static-en.ts` as a template for the page dictionary. Register it
+   in `pageTranslations` in `src/web/i18n.ts` and add the language to
+   `messages` there for dynamic text and PDF labels.
+3. Translate the fold instructions in `src/core/describe.ts`.
+4. Run `npm run check` and check the interface and PDF layouts in both the new
+   language and Russian.
+
 ## Layout
 
 ```

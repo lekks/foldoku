@@ -2,58 +2,62 @@
   <header>
     <div>
       <h1>Fold<span>opia</span></h1>
-      <p class="lede">Генератор складных головоломок. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4 с однотонной тёмной и светлой сторонами.</p>
+      <p class="lede"><span data-i18n="intro">Генератор складных головоломок. Лист 8×8 нужно сложить по линиям сетки и диагоналям клеток в квадрат 4×4 с однотонной тёмной и светлой сторонами.</span></p>
     </div>
+    <select id="language" data-i18n-aria-label="language" aria-label="Язык">
+      <option value="ru" lang="ru">Русский</option>
+      <option value="en" lang="en">English</option>
+    </select>
   </header>
 
-  <section class="controls" aria-label="Параметры">
+  <section class="controls" data-i18n-aria-label="settings" aria-label="Параметры">
     <div class="field">
-      <label for="seed">Код задания</label>
+      <label for="seed"><span data-i18n="puzzleCode">Код задания</span></label>
       <input id="seed" type="text" value="D-101" placeholder="D-101" maxlength="16" autocomplete="off" spellcheck="false">
     </div>
     <div class="field">
-      <label for="profile">Сложность</label>
+      <label for="profile"><span data-i18n="difficulty">Сложность</span></label>
       <select id="profile"></select>
     </div>
     <div class="field">
-      <label for="decoy">Ложные клетки <span class="val" id="decoyVal">0%</span></label>
+      <label for="decoy"><span data-i18n="decoys">Ложные клетки</span> <span class="val" id="decoyVal">0%</span></label>
       <input id="decoy" type="range" min="0" max="50" step="5" value="0">
     </div>
     <div class="spacer"></div>
-    <button id="prev" class="ghost" type="button" aria-label="Предыдущее задание">←</button>
-    <button id="next" type="button">Новое задание</button>
+    <button id="prev" class="ghost" type="button" data-i18n-aria-label="previous" aria-label="Предыдущее задание">←</button>
+    <button id="next" type="button"><span data-i18n="newPuzzle">Новое задание</span></button>
   </section>
-  <section class="controls" aria-label="Оформление задания">
+  <section class="controls" data-i18n-aria-label="appearance" aria-label="Оформление задания">
     <div class="field">
-      <span class="lab" id="colorLab">Цвет нейтральных клеток</span>
+      <span class="lab" id="colorLab"><span data-i18n="neutralColor">Цвет нейтральных клеток</span></span>
       <div class="swatches" id="swatches" role="group" aria-labelledby="colorLab"></div>
     </div>
     <div class="field">
-      <label for="darkInk">Тёмный оттенок</label>
+      <label for="darkInk"><span data-i18n="darkInk">Тёмный оттенок</span></label>
       <input id="darkInk" type="color" value="#606060">
     </div>
     <div class="field">
-      <label for="lightInk">Светлый оттенок</label>
+      <label for="lightInk"><span data-i18n="lightInk">Светлый оттенок</span></label>
       <input id="lightInk" type="color" value="#ffffff">
     </div>
     <div class="field">
-      <label for="texture">Фон нейтральных клеток</label>
+      <label for="texture"><span data-i18n="texture">Фон нейтральных клеток</span></label>
       <select id="texture">
-        <option value="flat">Однотонный</option>
-        <option value="bands">Полосы по рядам</option>
-        <option value="checker">Шахматный</option>
-        <option value="relief">Рельеф</option>
+        <option value="flat" data-i18n="flat">Однотонный</option>
+        <option value="bands" data-i18n="bands">Полосы по рядам</option>
+        <option value="checker" data-i18n="checker">Шахматный</option>
+        <option value="relief" data-i18n="relief">Рельеф</option>
       </select>
     </div>
   </section>
 
-  <section class="board" id="board" aria-label="Лист" aria-live="polite">
+  <section class="board" id="board" data-i18n-aria-label="sheet" aria-label="Лист" aria-live="polite">
     <figure>
-      <figcaption><b>Лицевая сторона</b><span id="capNo"></span></figcaption>
+      <figcaption><b><span data-i18n="front">Лицевая сторона</span></b><span id="capNo"></span></figcaption>
       <div class="sheet" id="front"></div>
     </figure>
     <figure id="backPreview">
-      <figcaption><b>Оборот</b><span>перевёрнут как страница, справа налево</span></figcaption>
+      <figcaption><b><span data-i18n="back">Оборот</span></b><span><span data-i18n="backHint">перевёрнут как страница, справа налево</span></span></figcaption>
       <div class="sheet" id="back"></div>
     </figure>
   </section>
@@ -62,123 +66,123 @@
 
   <section class="steps-section" style="display:grid;gap:14px">
     <div class="steps-head">
-      <h2>Решение</h2>
+      <h2><span data-i18n="solution">Решение</span></h2>
       <div class="legend">
-        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/></svg>долина: перегнуть поверх</span>
-        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3"/></svg>гора: подогнуть под низ</span>
-        <button id="toggleSol" class="ghost" type="button" aria-expanded="false">Показать решение</button>
-        <button id="copy" class="ghost" type="button">Копировать JSON</button>
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/></svg><span data-i18n="valley">долина: перегнуть поверх</span></span>
+        <span><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="currentColor" stroke-width="2" stroke-dasharray="8 3 2 3"/></svg><span data-i18n="mountain">гора: подогнуть под низ</span></span>
+        <button id="toggleSol" class="ghost" type="button" aria-expanded="false"><span data-i18n="showSolution">Показать решение</span></button>
+        <button id="copy" class="ghost" type="button"><span data-i18n="copyJson">Копировать JSON</span></button>
       </div>
     </div>
-    <div id="solBox" class="hidden-sol">Решение скрыто, чтобы не подсматривать. На схемах видна верхняя сторона стопки; бледным показана часть, которую сгибаем.</div>
+    <div id="solBox" class="hidden-sol"><span data-i18n="hiddenSolution">Решение скрыто, чтобы не подсматривать. На схемах видна верхняя сторона стопки; бледным показана часть, которую сгибаем.</span></div>
     <ol class="steps" id="steps" hidden></ol>
     <p class="toast" id="toast" role="status"></p>
-    <p class="note">Целый сгиб переворачивает всю стопку по одну сторону линии. Сгиб части слоёв поднимает только верхний (или нижний) клапан, который держится за остальное лишь по линии сгиба. При задвигании клапан не ложится сверху, а уходит в карман между слоями. Каждый шаг проверяется как настоящее плоское складывание: сгибы на одном ребре не пересекаются, и бумага нигде не проходит сквозь бумагу. Ложные клетки — это тёмные и светлые грани, которые в итоге оказываются спрятаны внутри квадрата.</p>
+    <p class="note"><span data-i18n="foldNotes">Целый сгиб переворачивает всю стопку по одну сторону линии. Сгиб части слоёв поднимает только верхний (или нижний) клапан, который держится за остальное лишь по линии сгиба. При задвигании клапан не ложится сверху, а уходит в карман между слоями. Каждый шаг проверяется как настоящее плоское складывание: сгибы на одном ребре не пересекаются, и бумага нигде не проходит сквозь бумагу. Ложные клетки — это тёмные и светлые грани, которые в итоге оказываются спрятаны внутри квадрата.</span></p>
   </section>
 
   <section class="print-section" aria-labelledby="printTitle">
-    <h2 id="printTitle">Печать</h2>
+    <h2 id="printTitle"><span data-i18n="print">Печать</span></h2>
     <div class="controls">
       <div class="field">
-        <label for="paper">Бумага</label>
+        <label for="paper"><span data-i18n="paper">Бумага</span></label>
         <select id="paper">
           <option value="a4" selected>A4</option>
           <option value="letter">Letter</option>
         </select>
       </div>
       <div class="field">
-        <label for="cell">Размер</label>
+        <label for="cell"><span data-i18n="size">Размер</span></label>
         <select id="cell">
-          <option value="12">Клетка 12 мм · квадрат 48 мм</option>
-          <option value="14">Клетка 14 мм · квадрат 56 мм</option>
-          <option value="16" selected>Клетка 16 мм · квадрат 64 мм</option>
-          <option value="18">Клетка 18 мм · квадрат 72 мм</option>
-          <option value="20">Клетка 20 мм · квадрат 80 мм</option>
-          <option value="22">Клетка 22 мм · квадрат 88 мм</option>
+          <option value="12" data-cell-label="single">Клетка 12 мм · квадрат 48 мм</option>
+          <option value="14" data-cell-label="single">Клетка 14 мм · квадрат 56 мм</option>
+          <option value="16" selected data-cell-label="single">Клетка 16 мм · квадрат 64 мм</option>
+          <option value="18" data-cell-label="single">Клетка 18 мм · квадрат 72 мм</option>
+          <option value="20" data-cell-label="single">Клетка 20 мм · квадрат 80 мм</option>
+          <option value="22" data-cell-label="single">Клетка 22 мм · квадрат 88 мм</option>
         </select>
       </div>
       <div class="field" data-duplex>
-        <label for="flip">Переворот</label>
+        <label for="flip"><span data-i18n="flip">Переворот</span></label>
         <select id="flip">
-          <option value="long" selected>По длинному краю</option>
-          <option value="short">По короткому краю</option>
+          <option value="long" selected data-i18n="longEdge">По длинному краю</option>
+          <option value="short" data-i18n="shortEdge">По короткому краю</option>
         </select>
       </div>
       <div class="field" data-duplex>
-        <label for="dx">Сдвиг оборота X, мм</label>
+        <label for="dx"><span data-i18n="offsetX">Сдвиг оборота X, мм</span></label>
         <input id="dx" type="number" step="0.5" min="-10" max="10" value="0">
       </div>
       <div class="field" data-duplex>
-        <label for="dy">Сдвиг оборота Y, мм</label>
+        <label for="dy"><span data-i18n="offsetY">Сдвиг оборота Y, мм</span></label>
         <input id="dy" type="number" step="0.5" min="-10" max="10" value="0">
       </div>
-      <label class="check"><input id="withSol" type="checkbox" checked> Страница с решением</label>
+      <label class="check"><input id="withSol" type="checkbox" checked> <span data-i18n="includeSolution">Страница с решением</span></label>
       <div class="spacer"></div>
-      <button id="calib" data-duplex class="ghost" type="button">Лист калибровки</button>
-      <button id="pdf" type="button">Скачать PDF</button>
+      <button id="calib" data-duplex class="ghost" type="button"><span data-i18n="calibrationSheet">Лист калибровки</span></button>
+      <button id="pdf" type="button"><span data-i18n="downloadPdf">Скачать PDF</span></button>
     </div>
     <p class="toast" id="printMsg" role="status"></p>
-    <p id="singlePrintHelp" hidden>Печатайте в масштабе 100 % на белой бумаге. Первая страница — задание, вторая — решение, если оно включено.</p>
+    <p id="singlePrintHelp" hidden><span data-i18n="simplexHelp">Печатайте в масштабе 100 % на белой бумаге. Первая страница — задание, вторая — решение, если оно включено.</span></p>
     <details class="howto" data-duplex>
-      <summary>Как распечатать, чтобы стороны совпали</summary>
+      <summary><span data-i18n="duplexHelp">Как распечатать, чтобы стороны совпали</span></summary>
       <ol>
-        <li><b>Скачайте PDF.</b> Первая страница — лицевая сторона, вторая — оборот, третья — решение (если отмечено). Решение лучше печатать на отдельном листе.</li>
-        <li><b>Масштаб 100 %.</b> В окне печати выберите «Фактический размер» или «100 %», а не «По размеру страницы». Иначе клетки уменьшатся, и оборот разъедется с лицом. Проверьте линейкой: клетка должна быть ровно того размера, который выбран в поле «Размер».</li>
-        <li><b>Двусторонняя печать</b> с переворотом по длинному краю: для книжной ориентации это обычный вариант. Если принтер умеет только по короткому, выберите это в поле «Переворот» выше и скачайте PDF заново.</li>
-        <li><b>Без автоматического дуплекса</b> напечатайте только страницу 1, положите лист обратно в лоток чистой стороной для печати и напечатайте страницу 2. Как класть лист, зависит от принтера: проверьте один раз на листе калибровки.</li>
-        <li><b>Размер.</b> Чем меньше клетка, тем аккуратнее нужно складывать: в квадрате бывает до восьми слоёв бумаги. Для первого раза удобны 16–18 мм.</li>
-        <li><b>Бумага.</b> Подойдёт обычная офисная 80 г/м². Плотная 100–120 г/м² лучше держит форму, но в восемь слоёв складывается хуже. Глянцевую бумагу не берите: на ней трудно прогладить сгиб.</li>
-        <li><b>Вырежьте квадрат</b> по меткам на углах лицевой стороны. Цвет специально выходит за метки на 2,5 мм, поэтому небольшой сдвиг оборота не оставит белой каймы.</li>
-        <li><b>Продавите сгибы.</b> Перед решением согните лист по всем линиям сетки и по диагоналям клеток в обе стороны: так он будет складываться легко и точно.</li>
+        <li><b><span data-i18n="downloadLead">Скачайте PDF.</span></b> <span data-i18n="downloadHelp">Первая страница — лицевая сторона, вторая — оборот, третья — решение (если отмечено). Решение лучше печатать на отдельном листе.</span></li>
+        <li><b><span data-i18n="scaleLead">Масштаб 100 %.</span></b> <span data-i18n="scaleHelp">В окне печати выберите «Фактический размер» или «100 %», а не «По размеру страницы». Иначе клетки уменьшатся, и оборот разъедется с лицом. Проверьте линейкой: клетка должна быть ровно того размера, который выбран в поле «Размер».</span></li>
+        <li><b><span data-i18n="duplexLead">Двусторонняя печать</span></b> <span data-i18n="duplexInstructions">с переворотом по длинному краю: для книжной ориентации это обычный вариант. Если принтер умеет только по короткому, выберите это в поле «Переворот» выше и скачайте PDF заново.</span></li>
+        <li><b><span data-i18n="manualLead">Без автоматического дуплекса</span></b> <span data-i18n="manualHelp">напечатайте только страницу 1, положите лист обратно в лоток чистой стороной для печати и напечатайте страницу 2. Как класть лист, зависит от принтера: проверьте один раз на листе калибровки.</span></li>
+        <li><b><span data-i18n="sizeLead">Размер.</span></b> <span data-i18n="sizeHelp">Чем меньше клетка, тем аккуратнее нужно складывать: в квадрате бывает до восьми слоёв бумаги. Для первого раза удобны 16–18 мм.</span></li>
+        <li><b><span data-i18n="paperLead">Бумага.</span></b> <span data-i18n="paperHelp">Подойдёт обычная офисная 80 г/м². Плотная 100–120 г/м² лучше держит форму, но в восемь слоёв складывается хуже. Глянцевую бумагу не берите: на ней трудно прогладить сгиб.</span></li>
+        <li><b><span data-i18n="cutLead">Вырежьте квадрат</span></b> <span data-i18n="cutHelp">по меткам на углах лицевой стороны. Цвет специально выходит за метки на 2,5 мм, поэтому небольшой сдвиг оборота не оставит белой каймы.</span></li>
+        <li><b><span data-i18n="creaseLead">Продавите сгибы.</span></b> <span data-i18n="creaseHelp">Перед решением согните лист по всем линиям сетки и по диагоналям клеток в обе стороны: так он будет складываться легко и точно.</span></li>
       </ol>
-      <h3>Калибровка принтера</h3>
-      <p>Даже хороший принтер печатает оборот со сдвигом на 1–2 мм. Его можно измерить один раз и вычитать.</p>
+      <h3><span data-i18n="calibration">Калибровка принтера</span></h3>
+      <p><span data-i18n="calibrationIntro">Даже хороший принтер печатает оборот со сдвигом на 1–2 мм. Его можно измерить один раз и вычитать.</span></p>
       <ol>
-        <li>Нажмите «Лист калибровки» и напечатайте его так же, как задание.</li>
-        <li>Проколите лист иглой точно в центре креста на лицевой стороне.</li>
-        <li>На обороте найдите прокол на миллиметровой сетке и прочитайте координаты: X положителен вправо, Y — вниз.</li>
-        <li>Прибавьте эти числа к полям «Сдвиг оборота» и напечатайте калибровку ещё раз: прокол должен попасть в ноль. Сдвиг запоминается в этом браузере и действует на все задания.</li>
+        <li><span data-i18n="calibrationPrint">Нажмите «Лист калибровки» и напечатайте его так же, как задание.</span></li>
+        <li><span data-i18n="calibrationPierce">Проколите лист иглой точно в центре креста на лицевой стороне.</span></li>
+        <li><span data-i18n="calibrationRead">На обороте найдите прокол на миллиметровой сетке и прочитайте координаты: X положителен вправо, Y — вниз.</span></li>
+        <li><span data-i18n="calibrationAdjust">Прибавьте эти числа к полям «Сдвиг оборота» и напечатайте калибровку ещё раз: прокол должен попасть в ноль. Сдвиг запоминается в этом браузере и действует на все задания.</span></li>
       </ol>
-      <p>Если прокол оказался далеко за сеткой, скорее всего, выбран не тот край переворота или масштаб не 100 %.</p>
+      <p><span data-i18n="calibrationTroubleshoot">Если прокол оказался далеко за сеткой, скорее всего, выбран не тот край переворота или масштаб не 100 %.</span></p>
     </details>
   </section>
 
   <section class="print-section" aria-labelledby="batchTitle">
-    <h2 id="batchTitle">Пакетная печать (односторонняя)</h2>
+    <h2 id="batchTitle"><span data-i18n="batch">Пакетная печать (односторонняя)</span></h2>
     <div class="controls" role="group" aria-labelledby="batchTitle">
       <div class="field">
-        <label for="batchCount">Количество заданий</label>
+        <label for="batchCount"><span data-i18n="batchCount">Количество заданий</span></label>
         <input id="batchCount" type="number" min="1" max="50" value="6">
       </div>
       <div class="field">
-        <label for="batchCell">Размер клетки в пакете</label>
+        <label for="batchCell"><span data-i18n="batchCell">Размер клетки в пакете</span></label>
         <select id="batchCell">
-          <option value="8" selected>8 мм · квадрат 32 мм</option>
-          <option value="9">9 мм · квадрат 36 мм</option>
-          <option value="10">10 мм · квадрат 40 мм</option>
+          <option value="8" selected data-cell-label="batch">8 мм · квадрат 32 мм</option>
+          <option value="9" data-cell-label="batch">9 мм · квадрат 36 мм</option>
+          <option value="10" data-cell-label="batch">10 мм · квадрат 40 мм</option>
         </select>
       </div>
       <div class="spacer"></div>
-      <button id="batchCancel" class="ghost" type="button" hidden>Отменить</button>
-      <button id="batchPreviewButton" type="button">Предпросмотр пакета</button>
+      <button id="batchCancel" class="ghost" type="button" hidden><span data-i18n="cancel">Отменить</span></button>
+      <button id="batchPreviewButton" type="button"><span data-i18n="previewBatch">Предпросмотр пакета</span></button>
     </div>
-    <p class="note">Односторонние задания в два столбца, начиная с указанного номера. Если для номера не удалось подобрать сгибы, берётся следующий. Формат бумаги берётся из блока печати. Решения скачиваются отдельным PDF.</p>
+    <p class="note"><span data-i18n="batchNote">Односторонние задания в два столбца, начиная с указанного номера. Если для номера не удалось подобрать сгибы, берётся следующий. Формат бумаги берётся из блока печати. Решения скачиваются отдельным PDF.</span></p>
     <p class="toast" id="batchMsg" role="status" hidden></p>
     <div class="batch-preview" id="batchPreview" hidden>
       <div class="controls">
-        <button id="batchPdf" type="button">Скачать пакет PDF</button>
-        <button id="batchAnswers" class="ghost" type="button">Скачать решения PDF</button>
-        <a id="batchOpen" target="_blank" rel="noopener">Открыть PDF в новой вкладке</a>
+        <button id="batchPdf" type="button"><span data-i18n="downloadBatch">Скачать пакет PDF</span></button>
+        <button id="batchAnswers" class="ghost" type="button"><span data-i18n="downloadAnswers">Скачать решения PDF</span></button>
+        <a id="batchOpen" target="_blank" rel="noopener"><span data-i18n="openPdf">Открыть PDF в новой вкладке</span></a>
       </div>
-      <iframe id="batchFrame" title="Предпросмотр PDF с заданиями"></iframe>
+      <iframe id="batchFrame" data-i18n-title="previewTitle" title="Предпросмотр PDF с заданиями"></iframe>
     </div>
   </section>
 
   <footer>
-    <span id="buildVersion">Версия <!-- FOLDOPIA_VERSION --></span>
+    <span id="buildVersion"><span data-i18n="version">Версия</span> <!-- FOLDOPIA_VERSION --></span>
     <!--
 Required Notice: Copyright 2026 lekks
     -->
-    <span>© 2026 lekks. <a href="https://polyformproject.org/licenses/noncommercial/1.0.0">Лицензия PolyForm Noncommercial 1.0.0</a>.</span>
+    <span>© 2026 lekks. <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><span data-i18n="license">Лицензия PolyForm Noncommercial 1.0.0</span></a>.</span>
   </footer>
 </div>
