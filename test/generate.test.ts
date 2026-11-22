@@ -18,6 +18,10 @@ for (const c of sampleCases()) {
       assert.equal(JSON.stringify([...p.states[i + 1]!]), JSON.stringify([...state]), `state after fold ${i + 1}`);
     }
     assert.equal(p.folds.filter(f => f.t === 'd' || f.t === 'a').length, c.diag);
+    if (c.diag > 0) {
+      const whole = (color: string) => p.faces.flat().filter(face => Object.values(face).every(q => q === color)).length;
+      assert.ok(Math.min(whole('B'), whole('W')) < 16, 'straight folds cannot cover both sides');
+    }
     if (c.tech >= 1) assert.ok(p.folds.some(f => f.kind !== 'full'), 'expected a flap or a tuck');
     if (c.tech >= 2) assert.ok(p.folds.some(f => f.kind === 'tuck'), 'expected a tuck');
 
@@ -50,4 +54,20 @@ test('single-sided puzzles use the front for both colors and all decoys', () => 
   assert.ok(p.faces.every(([, back]) => Object.values(back).every(color => color === 'N')));
   p.faces[0]![1].n = 'B';
   assert.equal(verify(p), false);
+});
+
+test('hard single-sided puzzle 122 keeps the advertised fold range', () => {
+  const p = generate(122, 'hard', 0, 1, 1, true);
+  assert.ok(p && verify(p));
+  assert.ok(p.folds.length >= 6 && p.folds.length <= 8);
+});
+
+test('easy and medium produce distinct sheets for the single-sided diagonal puzzle', () => {
+  for (const seed of [121, 122, 123]) {
+    const easy = generate(seed, 'easy', 0, 1, 1, true);
+    const mid = generate(seed, 'mid', 0, 1, 1, true);
+    assert.ok(easy && mid);
+    assert.ok(easy.folds.length < mid.folds.length);
+    assert.notDeepEqual(easy.faces, mid.faces);
+  }
 });

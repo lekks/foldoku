@@ -1,3 +1,4 @@
+import { hasShortSolution, requiresDiagonal } from './short-solution.ts';
 // TypeScript reference for the benchmark and the independent solution verifier.
 import { applyFold, onSide } from './fold.ts';
 import { ap, isDiagonal, mirror, N, QS, T } from './geometry.ts';
@@ -8,7 +9,7 @@ import { isValid } from './validity.ts';
 
 // Changing anything below that draws from the RNG changes every sheet for a given seed. See docs/roadmap.md §1.4.
 
-export const LEVELS: Readonly<Record<Level, readonly [number, number]>> = { easy: [2, 3], mid: [4, 5], hard: [6, 8] };
+import { foldRange } from './difficulty.ts';
 
 const isDiag = (f: Move): boolean => isDiagonal(f.t);
 
@@ -113,17 +114,24 @@ const HALVES: readonly (readonly Quarter[])[] = [['n', 'e'], ['e', 's'], ['s', '
 
 /** A solvable sheet for these settings, or null if the search gave up. Deterministic for equal inputs. */
 export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag = 0, tech: Tech = 0, singleSided = false): Puzzle | null {
+  for (let retry = 0; retry < 32; retry++) {
+    const puzzle = generateCandidate(seed + retry * 104729, level, decoy, diag, tech, singleSided);
+    if (!puzzle) {
+      if (level === 'hard' || diag > 0) continue;
+      return null;
+    }
+    if (level !== 'hard' || !hasShortSolution(puzzle.faces)) return { ...puzzle, seed };
+  }
+  return null;
+}
+
+function generateCandidate(seed: number, level: Level, decoy: number, diag: number, tech: Tech, singleSided: boolean): Puzzle | null {
   const R = rng(seed * 7919 + 17 + diag * 104729 + tech * 1299709);
-  let [lo, hi] = LEVELS[level];
-  // A diagonal fold always needs grid folds around it, and a tuck barely shrinks the sheet,
-  // so short levels grow to fit them.
-  lo = Math.max(lo, diag + 2, tech >= 2 ? 4 : 0);
-  hi = Math.max(hi, lo + 1);
+  const [lo, hi] = foldRange(level, diag, tech, singleSided);
   let res: Attempt | null = null;
   const flat = initState();
-  // Exact fold counts are rare for some mixes, so the range widens until something fits.
-  for (let relax = 0; !res && relax < 6; relax++) {
-    for (let attempt = 0; !res && attempt < 3000; attempt++) res = tryFolds(R, flat, Math.max(2, lo - relax), hi + relax, diag, tech, singleSided);
+  for (let attempt = 0; !res && attempt < 18000; attempt++) {
+    res = tryFolds(R, flat, lo, hi, diag, tech, singleSided);
   }
   if (!res) return null;
   const { folds, states, m } = res;
@@ -137,6 +145,7 @@ export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag 
     faces[bot.id]![bot.up === 0 ? 1 : 0][bot.q] = botColor;
   }
   // Decoys: whole hidden faces, and with diagonals on, sometimes just a triangular half.
+  if (diag > 0 && !requiresDiagonal(faces)) return null;
   let decoys = 0;
   for (const cell of faces) for (const face of singleSided ? [cell[0]] : cell) {
     if (!Object.values(face).every(v => v === 'N')) continue;
@@ -144,6 +153,10 @@ export function generate(seed: number, level: Level = 'mid', decoy = 0.15, diag 
       const col = R() < 0.5 ? 'B' : 'W';
       const qs = diag && R() < 0.35 ? HALVES[Math.floor(R() * 4)]! : QS;
       for (const q of qs) face[q] = col;
+      if (diag && !requiresDiagonal(faces)) {
+        for (const q of qs) face[q] = 'N';
+        continue;
+      }
       decoys++;
     }
   }

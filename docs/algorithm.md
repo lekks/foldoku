@@ -275,7 +275,7 @@ Tests used during development, which are not yet in the repo:
 | UI control                 | parameter | values                                               |
 |----------------------------|-----------|------------------------------------------------------|
 | Номер задания              | `seed`    | 1 … 999999                                           |
-| Сложность                  | `level`   | `easy` [2,3], `mid` [4,5], `hard` [6,8] (`LEVELS`)    |
+| Сложность                  | `level`   | `easy` [2,3], `mid` [4,5], `hard` [6,8] by default (`foldRange`)    |
 | Диагонали                  | `diag`    | exact number of diagonal folds, 0–3                  |
 | Приёмы                     | `tech`    | 0 full only; 1 + flaps (≥1 required); 2 + tucks (≥1 tuck required) |
 | Ложные клетки              | `decoy`   | probability 0–0.5                                    |
@@ -318,14 +318,12 @@ it is a union of the stationary part and the reflected moving part.
 ### 6.3 Outer loop
 
 ```
-for relax in 0..5:
-    for attempt in 1..3000:
-        res = tryFolds(R, max(2, lo − relax), hi + relax, diag, tech)
-        if res: stop
+for attempt in 1..18000:
+    res = tryFolds(R, lo, hi, diag, tech)
+    if res passes the print and validity checks: stop
 ```
 
-Relaxing widens the allowed fold count when the exact range is too rare. The UI shows
-the real count.
+The selector shows the fold ranges for the current settings. Retries use the same bounds.
 
 ### 6.4 Randomness and determinism
 
@@ -429,7 +427,7 @@ The weights are hand-picked and not calibrated (§10).
     every sheet with a given number. Published puzzles must be stored as data, or the
     generator must be versioned.
 12. **Search is rejection sampling.** Time varies a lot (ms to seconds) and depends on
-    luck. `relax` changes the fold range silently.
+    luck.
 13. **Restricted move families.** A flap is a single connected component, never a
     union. A tuck has one uniform depth across all positions. There is at most one tuck
     per puzzle. There are no reverse folds, squash folds or slits.

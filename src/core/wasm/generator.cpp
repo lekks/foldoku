@@ -517,6 +517,14 @@ bool serialize(Search &search, Rng &rng, double decoy, int diag, bool single) {
         paint[paint_offset(a, m.up[a])] = top;
         paint[paint_offset(b, m.up[b] ^ 1)] = bottom;
     }
+    int whole[3]{};
+    if (diag) {
+        for (int i = 0; i < Facets * 2; i += 4) {
+            const auto *q = paint + i;
+            if (q[0] == q[1] && q[0] == q[2] && q[0] == q[3]) ++whole[q[0]];
+        }
+        if (whole[Dark] >= T*T && whole[Light] >= T*T) return false;
+    }
     int decoys = 0;
     for (int cell = 0; cell < N*N; ++cell) {
         for (int face = 0; face < (single ? 1 : 2); ++face) {
@@ -527,6 +535,9 @@ bool serialize(Search &search, Rng &rng, double decoy, int diag, bool single) {
                 int half = rng.index(4);
                 q[half] = q[(half + 1) % 4] = col;
             } else {
+                int other = col == Dark ? Light : Dark;
+                if (diag && whole[col] + 1 >= T*T && whole[other] >= T*T) continue;
+                ++whole[col];
                 for (int i = 0; i < 4; ++i) q[i] = col;
             }
             ++decoys;
@@ -565,21 +576,16 @@ void set_neighbor(int facet, int edge, int neighbor, int x, int y) {
     neighbors[facet][edge] = {neighbor, x, y};
 }
 
-const int32_t *generate_puzzle(int seed, int level, double decoy, int diag, int tech, int single) {
-    if (level < 0 || level > 2 || diag < 0 || diag > 3 || tech < 0 || tech > 2) return nullptr;
+const int32_t *generate_puzzle(int seed, int lo, int hi, double decoy, int diag, int tech, int single) {
+    if (lo < 2 || hi < lo || hi > MaxFolds || diag < 0 || diag > 3 || tech < 0 || tech > 2) return nullptr;
     Rng rng{uint32_t(seed) * 7919u + 17u + uint32_t(diag) * 104729u + uint32_t(tech) * 1299709u};
-    const int lower[] = {2, 4, 6}, upper[] = {3, 5, 8};
-    int lo = max(lower[level], max(diag + 2, tech >= 2 ? 4 : 0));
-    int hi = max(upper[level], lo + 1);
     Search search;
     init(search.flat);
-    for (int relax = 0; relax < 6; ++relax) {
-        for (int attempt = 0; attempt < 3000; ++attempt) {
-            if (search.attempt(rng, max(2, lo - relax), hi + relax, diag, tech, single != 0)) {
-                // Invalid candidates must not consume paint draws or stop the search for this seed.
-                Rng paintRng = rng;
-                if (serialize(search, paintRng, decoy, diag, single != 0)) return result;
-            }
+    for (int attempt = 0; attempt < 18000; ++attempt) {
+        if (search.attempt(rng, lo, hi, diag, tech, single != 0)) {
+            // Invalid candidates must not consume paint draws or stop the search for this seed.
+            Rng paintRng = rng;
+            if (serialize(search, paintRng, decoy, diag, single != 0)) return result;
         }
     }
     return nullptr;

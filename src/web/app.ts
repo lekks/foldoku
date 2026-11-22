@@ -1,3 +1,4 @@
+import { foldRange } from '../core/difficulty.ts';
 // The generator page: reads the controls, generates in a worker, draws the sheet and the solution.
 
 import { bbox, describe, isDiagonal, N } from '../core/index.ts';
@@ -104,6 +105,12 @@ function startWorker(): Worker {
 
 function request(): void {
   const st = settings();
+  for (const [level, name] of [['easy', 'Лёгкая'], ['mid', 'Средняя'], ['hard', 'Трудная']] as const) {
+    const [lo, hi] = foldRange(level, st.diag, st.tech, st.singleSided);
+    const count = lo === hi ? String(hi) : lo + '–' + hi;
+    select('level').querySelector('option[value="' + level + '"]')!.textContent =
+      name + ' · ' + count + (hi < 5 ? ' сгиба' : ' сгибов');
+  }
   $('decoyVal').textContent = Math.round(st.decoy * 100) + '%';
   gen.id++;
   const args: GenerateArgs = [st.seed, st.level, st.decoy, st.diag, st.tech, st.singleSided];
