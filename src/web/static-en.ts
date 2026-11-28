@@ -1,5 +1,5 @@
 export const staticEnglish: Readonly<Record<string, string>> = {
-  "intro": "Paper-folding puzzle generator. Fold an 8×8 sheet along grid lines and cell diagonals into a 4×4 square with a solid dark side and a solid light side.",
+  "intro": "Paper-folding puzzle generator. Fold an 8×8 sheet along grid lines and cell diagonals into a 4×4 square with a solid dark side and a solid light side. Download a printable PDF with a step-by-step solution.",
   "puzzleCode": "Puzzle code",
   "difficulty": "Difficulty",
   "doubleSided": "Two-sided puzzle",

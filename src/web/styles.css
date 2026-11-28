@@ -31,6 +31,7 @@ header { display: flex; flex-wrap: wrap; align-items: end; justify-content: spac
 h1 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 5vw, 40px); line-height: 1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 h1 span { display: inline-block; padding: 0 .12em; background: var(--sheet); color: var(--paper-black); }
 .lede { margin: 8px 0 0; color: var(--muted); max-width: 60ch; }
+a#language { color: var(--ink); }
 h2 { font-family: var(--display); font-weight: 500; font-size: 17px; margin: 0; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); }

@@ -41,6 +41,11 @@ variable of the same name. Without it, no analytics snippet is added; the artifa
 fragment never includes it. The snippet is published as part of the page, so do not
 put secrets in it and only accept code from trusted sources.
 
+GitHub Pages sets `SITE_DOMAIN=foldopia.projlet.com` at build time. This produces
+Russian at `/`, English at `/en/`, and discovery files at `/robots.txt` and
+`/sitemap.xml`. Each public URL serves its language directly, with a link to the
+other language. To preview that build, run `SITE_DOMAIN=foldopia.projlet.com make dev`.
+
 | command | what it does |
 |---------|--------------|
 | `npm run dev` | rebuild `dist/` on every change in `src/` |
@@ -62,11 +67,14 @@ tests use the C++ generator.
 
 ## Adding a language
 
-Foldopia supports Russian and English. The selector in the header overrides the
-browser preference and remembers the choice locally. English is the fallback.
+Foldopia supports Russian and English. On the hosted site, the URL sets the language.
+In standalone builds, the selector in the header overrides the browser preference
+and remembers the choice locally. English is the standalone fallback.
 
 1. Add the language code in `src/core/language.ts` and the option in
-   `src/web/body.html`. Use the language's own name for the option.
+   `src/web/body.html`. Use the language's own name for the option. Register the
+   route and search metadata in `scripts/build.mjs` and include the new page in
+   the hosted build and language navigation.
 2. Use `src/web/static-en.ts` as a template for the page dictionary. Register it
    in `pageTranslations` in `src/web/i18n.ts` and add the language to
    `messages` there for dynamic text and PDF labels.
